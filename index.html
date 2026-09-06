@@ -10,12 +10,34 @@
   <main class="counter">
     <h1 class="counter__title">COUNTER</h1>
 
-    <!-- 7セグメント風ディスプレイ。data-value に応じて点灯セグメントが決まる -->
+    <!--
+      7セグメント風ディスプレイ（最大3桁）。
+      各 .digit の data-value（0〜9）に応じて点灯セグメントが決まる。
+      data-value を持たない桁は全消灯（先頭の余分な桁）。
+      初期表示は 0 → [消灯][消灯][0]
+    -->
     <div class="display">
       <!-- スクリーンリーダー向けの実数値。JS導入後はこのテキストを更新する -->
       <span class="sr-only" role="status" aria-live="polite">現在のカウント: 0</span>
-      <span class="display__sign" data-visible="false" aria-hidden="true">-</span>
       <div class="digits" aria-hidden="true">
+        <div class="digit">
+          <i class="seg seg--a"></i>
+          <i class="seg seg--b"></i>
+          <i class="seg seg--c"></i>
+          <i class="seg seg--d"></i>
+          <i class="seg seg--e"></i>
+          <i class="seg seg--f"></i>
+          <i class="seg seg--g"></i>
+        </div>
+        <div class="digit">
+          <i class="seg seg--a"></i>
+          <i class="seg seg--b"></i>
+          <i class="seg seg--c"></i>
+          <i class="seg seg--d"></i>
+          <i class="seg seg--e"></i>
+          <i class="seg seg--f"></i>
+          <i class="seg seg--g"></i>
+        </div>
         <div class="digit" data-value="0">
           <i class="seg seg--a"></i>
           <i class="seg seg--b"></i>
