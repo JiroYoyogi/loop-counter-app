@@ -65,20 +65,9 @@ body {
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.45);
 }
 
-.display__sign {
-  font-size: 56px;
-  font-weight: 700;
-  color: var(--seg-on);
-  text-shadow: 0 0 12px var(--seg-on-glow);
-}
-
-.display__sign[data-visible="false"] {
-  visibility: hidden;
-}
-
 .digits {
   display: flex;
-  gap: 14px;
+  gap: 12px;
 }
 
 /* ---------- 7セグメント数字 ---------- */
