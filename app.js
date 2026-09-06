@@ -1,8 +1,9 @@
-// ボタン操作とディスプレイ更新（カウントロジックは counter.js）。
+// ボタン操作とディスプレイ更新（カウントロジックは counter.js、保存は storage.js）。
 (function () {
   var Counter = window.Counter;
+  var Storage = window.CounterStorage;
 
-  var count = Counter.MIN;
+  var count = Storage.load();
 
   var digitEls = document.querySelectorAll(".digit");
   var srText = document.querySelector(".sr-only");
@@ -31,6 +32,13 @@
   bind(".btn--plus", Counter.increment);
   bind(".btn--minus", Counter.decrement);
   bind(".btn--reset", Counter.reset);
+
+  var saveBtn = document.querySelector(".btn--save");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", function () {
+      Storage.save(count);
+    });
+  }
 
   render();
 })();
