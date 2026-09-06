@@ -4,13 +4,13 @@
   var KEY = "loop-counter:count";
   var Counter = root.Counter || (typeof require !== "undefined" ? require("./counter") : null);
 
-  // localStorage から読んだ生文字列を、有効なカウント値（0〜999）に変換する。
-  // null / 数値でない / 範囲外 などはすべて 0 にフォールバック。
+  // localStorage から読んだ生文字列を数値に変換する。
+  // null / 数値でない場合は 0 にフォールバック。
   function parseStored(raw) {
     if (raw === null || raw === undefined) return Counter.MIN;
     var n = Number(raw);
     if (!Number.isFinite(n)) return Counter.MIN;
-    return Counter.clamp(n);
+    return n;
   }
 
   function serialize(count) {

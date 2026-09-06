@@ -23,9 +23,8 @@ describe("parseStored", () => {
     expect(parseStored("abc")).toBe(0);
     expect(parseStored("")).toBe(0);
   });
-  test("範囲外はクランプ", () => {
-    expect(parseStored("1500")).toBe(999);
-    expect(parseStored("-5")).toBe(0);
+  test("数値文字列はそのまま数値化される", () => {
+    expect(parseStored("100")).toBe(100);
   });
 });
 
