@@ -1,0 +1,212 @@
+:root {
+  --bg-outer: #0e1f27;
+  --bg-inner: #14303a;
+  --seg-on: #6fd6e6;
+  --seg-on-glow: rgba(111, 214, 230, 0.65);
+  --seg-off: #1b2f38;
+  --text-dim: #4a6b76;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  background: radial-gradient(circle at 50% 40%, var(--bg-inner), var(--bg-outer));
+  color: var(--seg-on);
+}
+
+.counter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.counter__title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  color: var(--text-dim);
+}
+
+/* ---------- ディスプレイ ---------- */
+.display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 32px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.1));
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.45);
+}
+
+.display__sign {
+  font-size: 56px;
+  font-weight: 700;
+  color: var(--seg-on);
+  text-shadow: 0 0 12px var(--seg-on-glow);
+}
+
+.display__sign[data-visible="false"] {
+  visibility: hidden;
+}
+
+.digits {
+  display: flex;
+  gap: 14px;
+}
+
+/* ---------- 7セグメント数字 ---------- */
+.digit {
+  position: relative;
+  width: 60px;
+  height: 104px;
+}
+
+.seg {
+  position: absolute;
+  background: var(--seg-off);
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+
+/* 横セグメント */
+.seg--a,
+.seg--d,
+.seg--g {
+  width: 40px;
+  height: 12px;
+  left: 10px;
+  clip-path: polygon(12% 0, 88% 0, 100% 50%, 88% 100%, 12% 100%, 0 50%);
+}
+
+.seg--a { top: 2px; }
+.seg--g { top: 46px; }
+.seg--d { top: 90px; }
+
+/* 縦セグメント */
+.seg--b,
+.seg--c,
+.seg--e,
+.seg--f {
+  width: 12px;
+  height: 40px;
+  clip-path: polygon(50% 0, 100% 12%, 100% 88%, 50% 100%, 0 88%, 0 12%);
+}
+
+.seg--f { top: 8px; left: 2px; }
+.seg--b { top: 8px; right: 2px; }
+.seg--e { top: 56px; left: 2px; }
+.seg--c { top: 56px; right: 2px; }
+
+/* 点灯 */
+.seg.is-on {
+  background: var(--seg-on);
+  box-shadow: 0 0 10px var(--seg-on-glow), 0 0 20px var(--seg-on-glow);
+}
+
+/* data-value に応じた点灯パターン（JS未導入でも静的に表示できる） */
+.digit[data-value="0"] .seg--a,
+.digit[data-value="0"] .seg--b,
+.digit[data-value="0"] .seg--c,
+.digit[data-value="0"] .seg--d,
+.digit[data-value="0"] .seg--e,
+.digit[data-value="0"] .seg--f,
+.digit[data-value="1"] .seg--b,
+.digit[data-value="1"] .seg--c,
+.digit[data-value="2"] .seg--a,
+.digit[data-value="2"] .seg--b,
+.digit[data-value="2"] .seg--g,
+.digit[data-value="2"] .seg--e,
+.digit[data-value="2"] .seg--d,
+.digit[data-value="3"] .seg--a,
+.digit[data-value="3"] .seg--b,
+.digit[data-value="3"] .seg--g,
+.digit[data-value="3"] .seg--c,
+.digit[data-value="3"] .seg--d,
+.digit[data-value="4"] .seg--f,
+.digit[data-value="4"] .seg--g,
+.digit[data-value="4"] .seg--b,
+.digit[data-value="4"] .seg--c,
+.digit[data-value="5"] .seg--a,
+.digit[data-value="5"] .seg--f,
+.digit[data-value="5"] .seg--g,
+.digit[data-value="5"] .seg--c,
+.digit[data-value="5"] .seg--d,
+.digit[data-value="6"] .seg--a,
+.digit[data-value="6"] .seg--f,
+.digit[data-value="6"] .seg--g,
+.digit[data-value="6"] .seg--e,
+.digit[data-value="6"] .seg--c,
+.digit[data-value="6"] .seg--d,
+.digit[data-value="7"] .seg--a,
+.digit[data-value="7"] .seg--b,
+.digit[data-value="7"] .seg--c,
+.digit[data-value="8"] .seg--a,
+.digit[data-value="8"] .seg--b,
+.digit[data-value="8"] .seg--c,
+.digit[data-value="8"] .seg--d,
+.digit[data-value="8"] .seg--e,
+.digit[data-value="8"] .seg--f,
+.digit[data-value="8"] .seg--g,
+.digit[data-value="9"] .seg--a,
+.digit[data-value="9"] .seg--b,
+.digit[data-value="9"] .seg--c,
+.digit[data-value="9"] .seg--d,
+.digit[data-value="9"] .seg--f,
+.digit[data-value="9"] .seg--g {
+  background: var(--seg-on);
+  box-shadow: 0 0 10px var(--seg-on-glow), 0 0 20px var(--seg-on-glow);
+}
+
+/* ---------- ボタン ---------- */
+.controls {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.btn {
+  flex: 1;
+  padding: 14px 18px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--seg-on);
+  background: rgba(111, 214, 230, 0.08);
+  border: 1px solid rgba(111, 214, 230, 0.35);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.05s ease;
+}
+
+.btn:hover {
+  background: rgba(111, 214, 230, 0.18);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn--save {
+  width: 100%;
+  flex: none;
+  background: rgba(111, 214, 230, 0.16);
+}
+
+.btn--plus,
+.btn--minus {
+  font-size: 22px;
+}
