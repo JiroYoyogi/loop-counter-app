@@ -11,9 +11,11 @@
     <h1 class="counter__title">COUNTER</h1>
 
     <!-- 7セグメント風ディスプレイ。data-value に応じて点灯セグメントが決まる -->
-    <div class="display" role="status" aria-live="polite" aria-label="現在のカウント">
-      <span class="display__sign" data-visible="false">-</span>
-      <div class="digits">
+    <div class="display">
+      <!-- スクリーンリーダー向けの実数値。JS導入後はこのテキストを更新する -->
+      <span class="sr-only" role="status" aria-live="polite">現在のカウント: 0</span>
+      <span class="display__sign" data-visible="false" aria-hidden="true">-</span>
+      <div class="digits" aria-hidden="true">
         <div class="digit" data-value="0">
           <i class="seg seg--a"></i>
           <i class="seg seg--b"></i>
