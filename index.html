@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loop Counter</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="counter">
+    <h1 class="counter__title">COUNTER</h1>
+
+    <!-- 7セグメント風ディスプレイ。data-value に応じて点灯セグメントが決まる -->
+    <div class="display">
+      <!-- スクリーンリーダー向けの実数値。JS導入後はこのテキストを更新する -->
+      <span class="sr-only" role="status" aria-live="polite">現在のカウント: 0</span>
+      <span class="display__sign" data-visible="false" aria-hidden="true">-</span>
+      <div class="digits" aria-hidden="true">
+        <div class="digit" data-value="0">
+          <i class="seg seg--a"></i>
+          <i class="seg seg--b"></i>
+          <i class="seg seg--c"></i>
+          <i class="seg seg--d"></i>
+          <i class="seg seg--e"></i>
+          <i class="seg seg--f"></i>
+          <i class="seg seg--g"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button type="button" class="btn btn--minus" aria-label="1減らす">&minus;</button>
+      <button type="button" class="btn btn--reset">RESET</button>
+      <button type="button" class="btn btn--plus" aria-label="1増やす">+</button>
+    </div>
+
+    <button type="button" class="btn btn--save">SAVE</button>
+  </main>
+</body>
+</html>
