@@ -1,0 +1,12 @@
+{
+  "name": "loop-counter-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "シンプルなカウンターアプリ",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
