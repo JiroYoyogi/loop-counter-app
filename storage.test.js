@@ -18,13 +18,17 @@ describe("parseStored", () => {
     expect(parseStored("42")).toBe(42);
     expect(parseStored("999")).toBe(999);
   });
-  test("null / 不正値は 0", () => {
+  test("null / 数値でない値は 0", () => {
     expect(parseStored(null)).toBe(0);
     expect(parseStored("abc")).toBe(0);
     expect(parseStored("")).toBe(0);
   });
-  test("数値文字列はそのまま数値化される", () => {
-    expect(parseStored("100")).toBe(100);
+  test("整数でない値は 0", () => {
+    expect(parseStored("1.5")).toBe(0);
+  });
+  test("範囲外（0未満・999超）は 0", () => {
+    expect(parseStored("-1")).toBe(0);
+    expect(parseStored("1000")).toBe(0);
   });
 });
 
@@ -61,5 +65,21 @@ describe("load / save", () => {
       },
     };
     expect(save(1, throwing)).toBe(false);
+  });
+  test("localStorage の参照自体が例外でも停止しない", () => {
+    const orig = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("SecurityError");
+      },
+    });
+    try {
+      expect(load()).toBe(0);
+      expect(save(5)).toBe(false);
+    } finally {
+      if (orig) Object.defineProperty(globalThis, "localStorage", orig);
+      else delete globalThis.localStorage;
+    }
   });
 });
