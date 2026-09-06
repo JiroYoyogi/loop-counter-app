@@ -1,9 +1,10 @@
 # Claude Code Instructions
 
-このプロジェクトの仕様とタスクは以下を参照してください。
+このプロジェクトの仕様・タスク・開発フローは以下を参照してください。
 
-- `docs/REQUIREMENTS.md`
-- `docs/TASKS.md`
+- `docs/REQUIREMENTS.md` … 仕様
+- `docs/TASKS.md` … タスク一覧
+- `docs/DEVELOPMENT.md` … 開発フロー・ブランチ運用・権限制約（作業前に必読）
 
 ## 実装方針
 

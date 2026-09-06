@@ -1,0 +1,77 @@
+# 開発フロー
+
+このプロジェクトを Claude Code（および後日 Codex）で継続開発するための手順とルール。
+仕様は `docs/REQUIREMENTS.md`、タスクは `docs/TASKS.md` を参照。
+
+## 全体の流れ
+
+1. `docs/TASKS.md` から次のタスクを1つ選ぶ
+2. 最新の `main` からタスク用ブランチを作成する（1タスク1ブランチ）
+3. 実装 → ローカルで動作確認 → コミット
+4. GitHub へ push して `main` 向けの Pull Request を作成する
+5. レビュー（当面はユーザー、のちに Codex）
+6. 指摘に対応して push し直す
+7. ユーザーがマージする
+
+## ブランチ運用
+
+- ブランチは必ず**最新の `main` から**切る：
+
+  ```bash
+  git checkout main
+  git fetch origin
+  git pull --ff-only origin main
+  git checkout -b feature/<task-name>
+  ```
+
+- 命名は `feature/<内容>`（例: `feature/counter-js`, `feature/save-localstorage`）
+- `main` はブランチ保護済み。直接 push・force push・マージは不可。変更は必ず PR 経由。
+
+## Claude Code の権限制約（`.claude/settings.json` の deny）
+
+Claude からは以下が**実行できない**。意図的な制約なので回避しようとしないこと。
+
+| 禁止 | 代替 |
+| --- | --- |
+| `gh pr merge` / `gh pr review` | マージ・承認はユーザーが行う |
+| `git merge`（`--ff-only` 含む） | `main` の更新は `git pull --ff-only` を使う |
+| `git push --force` / `-f` | やり直したい場合は**最新 `main` から新しいブランチを切り直す**（force push しない） |
+| `git branch -D` / リモートブランチ削除 | 不要ブランチの削除はユーザーが GitHub UI 等で行う |
+
+- コミット済みの内容を作り直す必要が出たら、`git push --force` ではなく
+  「新しいブランチ名で main から作り直し、変更を持っていく」で対応する。
+
+## ローカル動作確認
+
+フレームワークもビルドも無い。静的サーバーで開くだけ。
+
+```bash
+python3 -m http.server 8000
+# http://localhost:8000 を開く
+```
+
+## テスト（タスク3以降）
+
+- Jest を使用。`npm test` で実行。
+- `package.json` / `node_modules/` を追加するのはテスト導入タスクのときのみ
+  （`node_modules/` は `.gitignore` 済み）。
+- PR 作成時に GitHub Actions でテストが走るようにする。
+
+## アクセシビリティの約束
+
+- カウント値は視覚的な7セグメント要素（`aria-hidden="true"`）とは別に、
+  `.sr-only` の `role="status" aria-live="polite"` テキストで表現している。
+- **カウントを変更する処理では、この `.sr-only` テキストも必ず更新する**こと。
+
+## Codex レビュー
+
+- PR に `@codex review` とコメントするとレビューが走る。
+- レビュー方針は `AGENTS.md` を参照。
+- レビューコメントへの返信は日本語で、対応内容と対応コミットを簡潔に書く。
+
+## 数字表示の仕様（再掲）
+
+- カウント範囲は `0`〜`999`。負数にしない。`999` で頭打ち。
+- ディスプレイは3桁固定。`.digit` に `data-value="0"`〜`"9"` を与えると点灯、
+  与えないと全消灯（先頭の余分な桁を表現）。
+- 例: `5` → `[消灯][消灯][5]` / `42` → `[消灯][4][2]` / `999` → `[9][9][9]`
