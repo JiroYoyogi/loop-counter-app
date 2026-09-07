@@ -68,3 +68,43 @@
 ### 完成条件
 
 - （タスク着手時に記載する）
+
+## 6. Claude Code の GitHub 操作を GitHub App 経由にする
+
+- Claude Code から `git` / `gh` で行う GitHub 操作の認証を、個人アカウントの
+  トークンではなく **GitHub App のインストールトークン**で行えるようにする。
+- 秘密鍵（`.pem`）はリポジトリ外（`~/.config/github-apps/claude-code.pem`）に置く。
+- 認証スクリプト `scripts/github-app-auth.ts` を追加する。
+  - App ID / インストール ID / 秘密鍵パスは環境変数で受け取る。
+  - App JWT を生成し、インストールアクセストークンを取得する。
+  - 取得したトークンはキャッシュ（`~/.config/github-apps/claude-code.token.json` 等、
+    リポジトリ外）し、有効期限内なら再利用、期限切れ・残り僅かなら再発行する。
+  - 標準出力に有効なトークンだけを返す（`git` / `gh` から利用できる形）。
+- ライブラリ追加あり。`@octokit/auth-app`（App 認証）と `tsx`（TS 実行）を
+  `devDependencies` に追加する。`node_modules/` は `.gitignore` 済み。
+- `docs/DEVELOPMENT.md` に GitHub App のセットアップ手順と使い方を追記する。
+- `.claude/settings.json` の deny リストは変更しない（現状維持）。
+  App 化の目的は操作主体の分離であり、`gh pr merge` / `gh pr review` /
+  force push 等の禁止はこれまで通り維持する。
+- アプリ本体（`index.html` / `src` / カウンター機能）には手を加えない。
+
+### 完成条件
+
+- `~/.config/github-apps/claude-code.pem` と必要な環境変数
+  （App ID・インストール ID・秘密鍵パス）を用意した状態で
+  `npx tsx scripts/github-app-auth.ts` を実行すると、有効なインストール
+  アクセストークンが標準出力に1行で返る。
+- 取得したトークンで `gh` / `git` の読み取り操作（例: `gh repo view`、
+  `git ls-remote`）と PR 作成に必要な書き込み操作が成功する。
+- 2回目以降の実行では、キャッシュした未期限切れトークンを再利用し、
+  GitHub への新規リクエストを行わない。
+- キャッシュされたトークンが期限切れ（または残り 5 分未満）の場合は
+  自動で再発行され、新しいトークンが返る。
+- 秘密鍵・トークンキャッシュはいずれもリポジトリ配下に出力されず、
+  `git status` に現れない。
+- 秘密鍵ファイルや環境変数が無い場合は、原因が分かるエラーメッセージを
+  表示して非ゼロ終了する（スタックトレースだけで落ちない）。
+- `@octokit/auth-app` と `tsx` が `package.json` の `devDependencies` に
+  追加されている。`npm test`（既存の Jest）はこれまで通り通る。
+- `docs/DEVELOPMENT.md` にセットアップ手順が記載されている。
+- `.claude/settings.json` の deny リストが変更されていない。
