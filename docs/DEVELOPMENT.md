@@ -96,15 +96,23 @@ scripts/with-github-app.sh gh pr create --fill
 scripts/with-github-app.sh git push -u origin HEAD
 ```
 
-- トークンは `~/.config/github-apps/claude-code.token.json` にキャッシュされ、
-  有効期限まで5分以上あれば再利用する。切れていれば自動で再発行する。
+- トークンは `~/.config/github-apps/claude-code.token.json`（`0600`、親ディレクトリ
+  `0700`）にキャッシュされ、有効期限まで5分以上あれば再利用する。切れていれば
+  自動で再発行する。保存先は固定で、変更用の設定は用意していない。
 - 秘密鍵・環境変数が無い場合は原因を示すメッセージを出して非ゼロ終了する。
+- `with-github-app.sh` の `git` 実行には **git 2.31 以上**が必要（トークンを
+  argv に載せず `GIT_CONFIG_*` 環境変数でヘッダを渡すため）。
+- `origin` が HTTPS の GitHub リモートでない場合、`with-github-app.sh git ...` は
+  「App トークンが使われない」と明示エラーで停止する。
+  `git remote set-url origin https://github.com/OWNER/REPO.git` で切り替える。
 
 ### 制約
 
 - `.claude/settings.json` の deny リスト（`gh pr merge` / `gh pr review` /
   force push など）は App 化後も維持する。App 化の目的は操作主体の分離であり、
   権限を広げるものではない。
+- `with-github-app.sh` は、これらの禁止操作をラッパー経由で回避できないよう
+  同等のコマンドを検出して拒否する（終了コード 3）。
 
 ## ローカル動作確認
 

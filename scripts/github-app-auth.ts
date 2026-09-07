@@ -11,12 +11,12 @@
  *   GITHUB_APP_ID
  *   GITHUB_APP_INSTALLATION_ID
  *   GITHUB_APP_PRIVATE_KEY_PATH        (.pem のパス。リポジトリ外に置く)
- *   GITHUB_APP_TOKEN_CACHE_PATH        (任意。既定 ~/.config/github-apps/claude-code.token.json)
  *
- * 取得したトークンはキャッシュし、有効期限まで5分以上あれば再利用する。
+ * 取得したトークンは ~/.config/github-apps/claude-code.token.json にキャッシュし、
+ * 有効期限まで5分以上あれば再利用する（キャッシュ先はリポジトリ外に固定）。
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +24,8 @@ import { createAppAuth } from "@octokit/auth-app";
 import { config as loadDotenv } from "dotenv";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_CACHE_PATH = "~/.config/github-apps/claude-code.token.json";
+/** トークンキャッシュの保存先。リポジトリ外に固定（上書き設定は用意しない）。 */
+const CACHE_PATH = "~/.config/github-apps/claude-code.token.json";
 /** 有効期限までこの秒数を切っていたら再発行する。 */
 const RENEW_BEFORE_SEC = 5 * 60;
 
@@ -66,9 +67,9 @@ interface TokenCache {
   installationId: string;
 }
 
-function readCache(path: string): TokenCache | null {
+function readCache(): TokenCache | null {
   try {
-    const raw = readFileSync(expandHome(path), "utf8");
+    const raw = readFileSync(expandHome(CACHE_PATH), "utf8");
     const parsed = JSON.parse(raw) as Partial<TokenCache>;
     if (
       typeof parsed.token === "string" &&
@@ -91,9 +92,16 @@ function isFresh(cache: TokenCache, installationId: string): boolean {
   return remainingSec > RENEW_BEFORE_SEC;
 }
 
-function writeCache(path: string, cache: TokenCache): void {
-  const abs = expandHome(path);
-  mkdirSync(dirname(abs), { recursive: true });
+function writeCache(cache: TokenCache): void {
+  const abs = expandHome(CACHE_PATH);
+  const dir = dirname(abs);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  // 既存ディレクトリには mkdir の mode が効かないため明示的に絞る。
+  try {
+    chmodSync(dir, 0o700);
+  } catch {
+    /* 権限変更できなくても致命的ではない */
+  }
   writeFileSync(abs, JSON.stringify(cache, null, 2) + "\n", { mode: 0o600 });
 }
 
@@ -103,9 +111,8 @@ async function main(): Promise<void> {
   const appId = requireEnv("GITHUB_APP_ID");
   const installationId = requireEnv("GITHUB_APP_INSTALLATION_ID");
   const privateKeyPath = requireEnv("GITHUB_APP_PRIVATE_KEY_PATH");
-  const cachePath = process.env.GITHUB_APP_TOKEN_CACHE_PATH?.trim() || DEFAULT_CACHE_PATH;
 
-  const cached = readCache(cachePath);
+  const cached = readCache();
   if (cached && isFresh(cached, installationId)) {
     process.stderr.write("cache hit: 未期限切れのトークンを再利用します\n");
     process.stdout.write(cached.token + "\n");
@@ -130,7 +137,7 @@ async function main(): Promise<void> {
     );
   }
 
-  writeCache(cachePath, { token, expiresAt, installationId });
+  writeCache({ token, expiresAt, installationId });
   process.stderr.write(`発行しました（有効期限 ${expiresAt}）\n`);
   process.stdout.write(token + "\n");
 }
