@@ -111,8 +111,10 @@ scripts/with-github-app.sh git push -u origin HEAD
 - `.claude/settings.json` の deny リスト（`gh pr merge` / `gh pr review` /
   force push など）は App 化後も維持する。App 化の目的は操作主体の分離であり、
   権限を広げるものではない。
-- `with-github-app.sh` は、これらの禁止操作をラッパー経由で回避できないよう
-  同等のコマンドを検出して拒否する（終了コード 3）。
+- `with-github-app.sh` が実行できるのは `git` / `gh` のみ。`sh -c ...` 等での
+  迂回はトークン取得前に拒否する（終了コード 3）。
+- 禁止操作（`gh pr merge` 等）に相当するコマンドも同様に検出して拒否する
+  （終了コード 3）。
 
 ## ローカル動作確認
 

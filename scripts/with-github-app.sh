@@ -15,8 +15,10 @@
 #   その上で、渡されたコマンドをそのまま実行する。
 #
 # 制約:
-#   .claude/settings.json の deny リストに相当する操作（マージ・レビュー承認・
-#   force push など）はこのラッパー経由でも実行できないようガードする。
+#   - 実行できるのは `git` / `gh` のみ（`sh -c ...` 等での迂回を防ぐ）。
+#   - .claude/settings.json の deny リストに相当する操作（マージ・レビュー承認・
+#     force push など）はこのラッパー経由でも実行できないようガードする。
+#   - push/取得に使われる URL が HTTPS の github でなければ明示的に失敗する。
 
 set -euo pipefail
 
@@ -37,8 +39,17 @@ sub2="${3:-}"
 # 前後にスペースを付けて「単語境界」で部分一致できるようにする。
 all=" $* "
 
-# --- #1: deny 相当の操作をガード（トークン発行より前に弾く） ---------------
+# --- #1: 実行対象を git / gh に限定（トークン発行より前に弾く） -------------
+# これ以外（sh -c ... や env ... など）を許すと、GH_TOKEN を継承したまま
+# 任意コマンドを実行でき、deny ガードを迂回できてしまう。
 deny() { die "禁止された操作です（.claude/settings.json の deny 相当）: $1" 3; }
+
+case "$cmd" in
+  git|gh) : ;;
+  *) deny "git / gh 以外のコマンド（${cmd}）" ;;
+esac
+
+# --- #1: deny 相当の操作をガード（トークン発行より前に弾く） ---------------
 
 if [ "$cmd" = "gh" ]; then
   case "$sub $sub2" in
@@ -72,18 +83,52 @@ if [ "$cmd" = "git" ]; then
   esac
 fi
 
-# --- #2: 非 HTTPS の github リモートを検出して明示エラー --------------------
+# --- #2: 実際に使われる push/取得 URL が非 HTTPS の github なら明示エラー ----
+# fetch URL だけでなく push URL（remote.<name>.pushurl）も検査する。
+# 対象リモートは push/fetch/pull/ls-remote の引数から推定（無ければ origin）。
 if [ "$cmd" = "git" ]; then
-  remote_url="$(git remote get-url origin 2>/dev/null || true)"
-  case "$remote_url" in
-    https://github.com/*) : ;;                 # OK
-    "") : ;;                                   # origin 無し。git 側の挙動に任せる
-    *github.com*|*github.com:*)
-      die "origin が HTTPS ではないため App トークンが使われません: ${remote_url}
-  次のように HTTPS へ切り替えてください:
-    git remote set-url origin https://github.com/OWNER/REPO.git" 5 ;;
-    *) : ;;                                    # github 以外のリモートは対象外
+  target_remote=""
+  case "$all" in
+    *" push "*|*" fetch "*|*" pull "*|*" ls-remote "*)
+      seen_sub=0
+      for a in "$@"; do
+        if [ "$seen_sub" -eq 0 ]; then
+          case "$a" in push|fetch|pull|ls-remote) seen_sub=1 ;; esac
+          continue
+        fi
+        case "$a" in
+          -*) continue ;;
+          *) target_remote="$a"; break ;;
+        esac
+      done
+      [ -z "$target_remote" ] && target_remote="origin"
+      ;;
   esac
+
+  if [ -n "$target_remote" ]; then
+    case "$target_remote" in
+      *://*|*@*:*)
+        # URL を直接指定している場合はそのまま検査対象にする。
+        check_urls="$target_remote" ;;
+      *)
+        # リモート名: fetch URL と push URL の両方を検査する。
+        check_urls="$(git remote get-url "$target_remote" 2>/dev/null || true)
+$(git remote get-url --push "$target_remote" 2>/dev/null || true)" ;;
+    esac
+    while IFS= read -r u; do
+      [ -z "$u" ] && continue
+      case "$u" in
+        https://github.com/*) : ;;              # OK
+        *github.com*)
+          die "App トークンが使われない GitHub リモートです（HTTPS ではありません）: ${u}
+  リモート '${target_remote}' を HTTPS に切り替えてください:
+    git remote set-url --push ${target_remote} https://github.com/OWNER/REPO.git" 5 ;;
+        *) : ;;                                 # github 以外のリモートは対象外
+      esac
+    done <<EOF
+${check_urls}
+EOF
+  fi
 fi
 
 # --- トークン取得 ---------------------------------------------------------
