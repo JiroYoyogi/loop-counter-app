@@ -51,6 +51,61 @@ Claude からは以下が**実行できない**。意図的な制約なので回
 - コミット済みの内容を作り直す必要が出たら、`git push --force` ではなく
   「新しいブランチ名で main から作り直し、変更を持っていく」で対応する。
 
+## GitHub App 認証（Claude Code / Codex からの GitHub 操作）
+
+Claude Code などから `git` / `gh` を使う際の認証を、個人アカウントの
+トークンではなく **GitHub App のインストールアクセストークン**で行う。
+
+### セットアップ（1回だけ）
+
+1. GitHub App を作成し、対象リポジトリにインストールする（作成済みならスキップ）。
+   - 必要な権限の目安: `Contents: Read and write`、`Pull requests: Read and write`、
+     `Metadata: Read-only`
+2. App の秘密鍵（`.pem`）を**リポジトリ外**に置く:
+
+   ```bash
+   mkdir -p ~/.config/github-apps
+   mv /path/to/downloaded.pem ~/.config/github-apps/claude-code.pem
+   chmod 600 ~/.config/github-apps/claude-code.pem
+   ```
+
+3. リポジトリ直下に `.env` を作成する（`.env.example` をコピー）:
+
+   ```bash
+   cp .env.example .env
+   # .env を編集して App ID / インストール ID を実際の値にする
+   ```
+
+   - `GITHUB_APP_ID`: App 設定ページの "App ID"
+   - `GITHUB_APP_INSTALLATION_ID`: `https://github.com/settings/installations/XXXXXXXX` の数字
+   - `GITHUB_APP_PRIVATE_KEY_PATH`: 既定のままなら `~/.config/github-apps/claude-code.pem`
+   - `.env` と `.pem`、トークンキャッシュはいずれも Git 管理外（コミットしない）
+
+### 使い方
+
+トークンだけ取得（stdout に1行）:
+
+```bash
+npm run gh-token
+```
+
+`git` / `gh` を App トークンで実行:
+
+```bash
+scripts/with-github-app.sh gh pr create --fill
+scripts/with-github-app.sh git push -u origin HEAD
+```
+
+- トークンは `~/.config/github-apps/claude-code.token.json` にキャッシュされ、
+  有効期限まで5分以上あれば再利用する。切れていれば自動で再発行する。
+- 秘密鍵・環境変数が無い場合は原因を示すメッセージを出して非ゼロ終了する。
+
+### 制約
+
+- `.claude/settings.json` の deny リスト（`gh pr merge` / `gh pr review` /
+  force push など）は App 化後も維持する。App 化の目的は操作主体の分離であり、
+  権限を広げるものではない。
+
 ## ローカル動作確認
 
 フレームワークもビルドも無い。静的サーバーで開くだけ。
