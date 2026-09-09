@@ -122,6 +122,9 @@
 - `--web` / `-w`（`-dw` のような結合形も）を渡すと終了コード 3 で拒否される。
 - App トークンを取得できないとき、credential helper は `quit=1` を返して
   git を中断させる（個人認証へフォールバックしない）。
+- credential helper は `github.com` / `github.com:443` / `GitHub.com` の
+  いずれの表記でも App トークンを返す。`gitlab.com` や
+  `github.com.evil.example` のような別ホストには関与しない。
 - 2回目以降の実行では、キャッシュした未期限切れトークンを再利用し、
   GitHub への新規リクエストを行わない。
 - キャッシュされたトークンが期限切れ（または残り 5 分未満）の場合は

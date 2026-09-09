@@ -148,6 +148,9 @@ npm run gh-token
 - credential helper は github.com の HTTPS 以外には関与しない（他ホスト・SSH は
   従来どおり）。SSH リモートでは App トークンは使われないため、App 経由で
   操作したいリポジトリは HTTPS リモートにする。
+- ホスト判定は正規化してから行う（`GitHub.com` のような大文字表記、
+  `github.com:443` のような既定ポート付きも同一ホストとして扱う）。
+  これらを取りこぼすと個人認証へフォールバックしてしまうため。
 - **App トークンを取得できない場合は fail closed**。helper が `quit=1` を返し、
   git は後続の helper や `GIT_ASKPASS`・対話入力に進まずに中断する。
   個人アカウントの資格情報へ黙って切り替わることはない。原因（`.env` 未設定、

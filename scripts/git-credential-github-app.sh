@@ -27,8 +27,16 @@ while IFS='=' read -r key value; do
   esac
 done
 
+# ホストは正規化してから判定する。git は URL の表記をそのまま渡してくるため、
+# https://GitHub.com/... なら host=GitHub.com、https://github.com:443/... なら
+# host=github.com:443 になる。完全一致で判定すると、これらで資格情報を返さず
+# askpass / 対話入力（＝個人認証）へフォールバックしてしまう。
+protocol_norm="$(printf '%s' "$protocol" | tr '[:upper:]' '[:lower:]')"
+host_norm="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
+host_norm="${host_norm%:443}"   # https の既定ポートは付いていても同一ホスト
+
 # github.com の HTTPS 以外には関与しない（他の helper / 対話にフォールバック）。
-if [ "$protocol" != "https" ] || [ "$host" != "github.com" ]; then
+if [ "$protocol_norm" != "https" ] || [ "$host_norm" != "github.com" ]; then
   exit 0
 fi
 
