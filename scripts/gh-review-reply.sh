@@ -45,7 +45,13 @@ case "$comment_id" in ''|*[!0-9]*) die "コメント ID は数字で指定して
 unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_CEILING_DIRECTORIES
 unset GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
 
-origin="$(git -C "$SCRIPT_DIR/.." remote get-url origin 2>/dev/null || true)"
+# `git remote get-url` は url.<base>.insteadOf による書き換えを適用してしまう。
+# ここで欲しいのは接続時に使われる URL ではなく、リポジトリに保存された生の
+# origin なので、ローカル設定から直接読む。
+# （例: url."git@github.com:".insteadOf=https://github.com/ という一般的な設定が
+#   あると、get-url は https の origin を SSH 形式で返し、正しい origin が
+#   拒否されてしまう）
+origin="$(git -C "$SCRIPT_DIR/.." config --local --get remote.origin.url 2>/dev/null || true)"
 [ -n "$origin" ] || die "origin が設定されていません" 5
 
 # スキームとホストは正規化してから判定する（credential helper と同じ扱い）。
