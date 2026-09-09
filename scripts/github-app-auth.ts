@@ -125,6 +125,34 @@ function isFresh(cache: TokenCache, installationId: string): boolean {
   return remainingSec > RENEW_BEFORE_SEC;
 }
 
+/**
+ * キャッシュとその親ディレクトリを「自分だけが読める」権限に矯正する。
+ * writeCache() の chmod はキャッシュミス時にしか走らないため、ヒット時にも
+ * ここで確認する。矯正できない場合はトークンを返さず中断する（fail closed）。
+ */
+function enforceCachePermissions(): void {
+  const abs = expandHome(CACHE_PATH);
+  const dir = dirname(abs);
+  for (const [target, mode] of [
+    [dir, 0o700],
+    [abs, 0o600],
+  ] as const) {
+    const current = statSync(target).mode & 0o777;
+    if ((current & 0o077) === 0) continue; // group / other に権限が無ければそのまま
+    try {
+      chmodSync(target, mode);
+      process.stderr.write(
+        `権限を ${mode.toString(8)} に矯正しました: ${target}\n`,
+      );
+    } catch {
+      throw new ConfigError(
+        `${target} の権限を ${mode.toString(8)} に変更できません。\n` +
+          `トークンが他ユーザーから読める状態のため中断します。`,
+      );
+    }
+  }
+}
+
 function writeCache(cache: TokenCache): void {
   const abs = expandHome(CACHE_PATH);
   const dir = dirname(abs);
@@ -156,6 +184,7 @@ async function main(): Promise<void> {
 
   const cached = readCache();
   if (cached && isFresh(cached, installationId)) {
+    enforceCachePermissions();
     process.stderr.write("cache hit: 未期限切れのトークンを再利用します\n");
     process.stdout.write(cached.token + "\n");
     return;
