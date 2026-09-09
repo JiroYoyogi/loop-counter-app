@@ -104,6 +104,10 @@ git push -u origin HEAD
 ```
 
 **gh**: `scripts/with-github-app.sh` 経由で実行する（`GH_TOKEN` を注入）。
+このラッパーは**許可リスト方式**で、実行できるのは次の操作だけ:
+`gh pr create|view|list|status|checks|diff|comment|ready` / `gh repo view` /
+`gh api`（`PUT` / `DELETE` メソッドは不可）。それ以外・エイリアス・拡張は
+終了コード 3 で拒否する。
 
 ```bash
 scripts/with-github-app.sh gh pr create --fill
@@ -130,10 +134,10 @@ npm run gh-token
   force push など）は App 化後も維持する。App 化の目的は操作主体の分離であり、
   権限を広げるものではない。
 - `git` は素の `git` として実行するため、deny リストが従来どおり照合される。
-- `gh` は `with-github-app.sh` 経由でのみ App トークンを使う。このラッパーは
-  `gh` 以外（`git` / `sh -c ...` 等）を実行できず、`gh pr merge` /
-  `gh pr review` / `gh repo delete` / `gh api` の DELETE もトークン取得前に
-  拒否する（終了コード 3）。
+- `gh` は `with-github-app.sh` 経由でのみ App トークンを使う。ラッパーは
+  許可リスト方式（default-deny）で、`gh` 以外や許可外サブコマンド、
+  `gh api` の `PUT`/`DELETE` はトークン取得前に拒否する（終了コード 3）。
+  必要な操作が増えたらラッパーの許可リストに1行足す。
 
 ## ローカル動作確認
 
