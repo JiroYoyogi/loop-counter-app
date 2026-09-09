@@ -112,19 +112,28 @@ git push -u origin HEAD
 
 - `gh pr create|view|list|status|checks|diff|comment|ready`
 - `gh repo view`
-- `gh api` — GET は任意。**書き込み（GET 以外）はコメント／リアクション系の
-  エンドポイントに限定**（`.../comments`、`.../comments/*/replies`、
-  `.../comments/*`、`.../comments/*/reactions`）。
-  `PUT` / `DELETE`、`graphql`、`*/reviews`、`/git/refs/*`（force 更新）、
-  `/merges`、`/pulls/{n}`（PR 編集）などその他の書き込みは不可
+- `gh api` — **読み取り専用**。メソッド／本文を指定しうるフラグ
+  （`-X` / `--method` / `-f` / `-F` / `--field` / `--raw-field` / `--input`、
+  および `-iXPOST` のような結合形）が1つでもあれば拒否する。
+  これらが無い `gh api` は必ず GET になるので、宛先を問わず書き込みは起きない
 
 それ以外・エイリアス・拡張は終了コード 3 で拒否する。
-（レビュースレッドへの返信は `gh api --method POST .../comments/{id}/replies` で可能）
+
+書き込みが必要な操作は、引数を解析して安全性を判定するのではなく、
+**専用スクリプト**または許可済みサブコマンドを使う:
+
+| したいこと | 使うもの |
+| --- | --- |
+| PR 直下にコメント | `scripts/with-github-app.sh gh pr comment <n> --body ...` |
+| PR 作成 | `scripts/with-github-app.sh gh pr create --fill` |
+| レビュースレッドへ返信 | `scripts/gh-review-reply.sh <pr> <comment-id> [body-file]` |
 
 ```bash
-scripts/with-github-app.sh gh pr create --fill
-scripts/with-github-app.sh gh pr view 7
+echo '対応しました。' | scripts/gh-review-reply.sh 7 3964156069
 ```
+
+`gh-review-reply.sh` は宛先を `origin` の OWNER/REPO から導出し、PR 番号と
+コメント ID は数字のみを受け付け、本文は JSON で渡す（フラグとして解釈されない）。
 
 **トークンだけ取得**（デバッグ用、stdout に1行）:
 
@@ -148,14 +157,18 @@ npm run gh-token
 - `git` は素の `git` として実行するため、deny リストが従来どおり照合される。
 - `gh` は `with-github-app.sh` 経由でのみ App トークンを使う。ラッパーは
   許可リスト方式（default-deny）。`gh` 以外・許可外サブコマンド・エイリアス・
-  拡張を拒否し、`gh api` の書き込みはコメント／リアクション系エンドポイント
-  だけに限定する（メソッド名ではなく宛先で判定。`/git/refs` force 更新や
-  `/merges` などの迂回を防ぐ）。すべてトークン取得前に拒否（終了コード 3）。
-- ラッパーで防ぎきれない範囲（`gh api` POST で PR にコメントを付ける等）は
-  低リスクとして許容する。マージ・force push・ブランチ削除・リポジトリ設定は
-  ラッパー／deny リスト／`main` のブランチ保護で多重にブロックされる。
-- bot による PR 承認は、ラッパーで `*/reviews` 書き込みを禁止して防ぐ。
-  加えて、必要なら CODEOWNERS で人によるレビューを必須にする。
+  拡張を拒否し、`gh api` は読み取り専用に固定する。すべてトークン取得前に
+  拒否（終了コード 3）。
+- 書き込みは「引数から実リクエストを推測して判定する」のではなく、URL と
+  メソッドをスクリプト側が組み立てる専用コマンドとして提供する
+  （`scripts/gh-review-reply.sh`）。推測に頼らないぶん迂回の余地が無い。
+- App から可能な書き込みは「push（credential helper）」「PR 作成・PR コメント
+  （許可済みサブコマンド）」「レビュースレッド返信（専用スクリプト）」のみ。
+  マージ・force push・ブランチ削除・PR 承認・リポジトリ設定変更はいずれも
+  経路が存在しない。加えて `main` のブランチ保護と App 権限の最小化
+  （`workflows` 無し）で多重に守る。
+- bot による PR 承認は経路が無いため起こらない。さらに厳密にしたい場合は
+  CODEOWNERS で人によるレビューを必須にする。
 
 ## ローカル動作確認
 

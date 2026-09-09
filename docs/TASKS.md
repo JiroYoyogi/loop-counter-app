@@ -85,8 +85,9 @@
   ラッパーで `git` をくるまないため、deny リストの照合は従来どおり効く。
 - `gh` は `scripts/with-github-app.sh` 経由で実行する（`GH_TOKEN` を注入）。
   ラッパーは許可リスト方式（default-deny）。許可 gh サブコマンド以外・
-  エイリアス・拡張を拒否し、`gh api` の書き込みは**コメント／リアクション系
-  エンドポイントのみ**に限定する（宛先で判定。GET は任意）。
+  エイリアス・拡張を拒否し、`gh api` は**読み取り専用**に固定する。
+- 書き込みは専用スクリプトで提供する（`scripts/gh-review-reply.sh`）。
+  URL とメソッドをスクリプト側が組み立てるため、引数解析による判定漏れが無い。
   → bot 名義のレビュー返信は可能、force 更新やマージ等は不可。
 - App の権限は最小限（`contents:write` / `pull_requests:write` / `metadata:read`）。
   `workflows` は付与しない。
@@ -107,12 +108,17 @@
 - credential helper 登録後、`git ls-remote origin` / `git push`（HTTPS）が
   App トークンで成功する（`git credential fill` の password が `ghs_` で始まる）。
 - `scripts/with-github-app.sh gh ...` で許可リスト内の操作（`gh pr create` /
-  `gh pr view` / `gh api` GET / `gh api --method POST .../replies` など）が成功する。
+  `gh pr comment` / `gh pr view` / `gh api` の GET）が成功する。
+- `scripts/gh-review-reply.sh <pr> <comment-id>` でレビュースレッドに
+  App（bot）名義の返信が投稿できる。
 - `scripts/with-github-app.sh` に次を渡すと、トークン取得前に終了コード 3 で拒否される:
   `gh pr merge`、`gh -R o/r pr merge`、エイリアス、`git`、`sh -c ...`、
-  `gh api` の `PUT`/`DELETE`（`-iXDELETE` 等の結合形も）、`graphql`、
-  コメント／リアクション系以外への書き込み（`/git/refs`・`/merges`・
-  `/pulls/{n}` 編集・`*/reviews` など）。
+  `gh api` にメソッド／本文フラグを含むもの
+  （`-X` / `--method` / `-f` / `-F` / `--field` / `--raw-field` / `--input`、
+  `-iXDELETE` のような結合形、`--input -XGET` のような値経由の細工を含む）、
+  `gh api graphql`。
+- `scripts/gh-review-reply.sh` は PR 番号・コメント ID が数字でなければ拒否し、
+  宛先は `origin` から導出する（呼び出し側がリポジトリを指定できない）。
 - 2回目以降の実行では、キャッシュした未期限切れトークンを再利用し、
   GitHub への新規リクエストを行わない。
 - キャッシュされたトークンが期限切れ（または残り 5 分未満）の場合は

@@ -33,6 +33,8 @@ if [ "$protocol" != "https" ] || [ "$host" != "github.com" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-token="$(cd "$SCRIPT_DIR/.." && npm run --silent gh-token 2>/dev/null)"
+# stderr は credential helper のプロトコル（stdout の key=value）を壊さないので、
+# 設定不備の原因メッセージがそのまま git 利用者に見えるよう伝播させる。
+token="$(cd "$SCRIPT_DIR/.." && npm run --silent gh-token)"
 
 printf 'username=x-access-token\npassword=%s\n' "$token"

@@ -64,82 +64,27 @@ case "$sub1 $sub2" in
     die "許可されていない gh 操作です: gh $* （許可リストは ${0} を参照）" 3 ;;
 esac
 
-# --- gh api: GET は任意 / 書き込みはコメント系エンドポイントに限定 -----------
-# メソッド名だけでは PATCH /git/refs（force 更新）や POST /merges のような
-# 破壊的書き込みを止められないため、「書き込み先エンドポイントの許可リスト」で
-# 判定する（default-deny）。
+# --- gh api は「読み取り専用（GET）」に限定 --------------------------------
+# 方針: 引数を解析して「実際に飛ぶリクエスト」を推測するのは信頼できない
+#   （--input の値・結合フラグ・フラグメント等でいくらでも誤判定させられる）。
+#   そこで推測をやめ、「本文やメソッドを指定しうるフラグが1つでもあれば拒否」
+#   という保守的な判定にする。これらが無ければ gh api は必ず GET になるため、
+#   宛先を問わず書き込みは発生しない。
+#   書き込みが必要な操作は専用スクリプト（scripts/gh-review-reply.sh）や
+#   許可済みサブコマンド（gh pr create / gh pr comment）を使う。
 if [ "$sub1" = "api" ]; then
-  # 1) メソッド抽出（-X M / -XM / --method M / --method=M / 結合クラスタ -iXM）。
-  #    明示メソッドが無く -f/-F/--field 等があれば gh は POST になる。
-  method=""
-  has_fields=0
-  expect_method=0
   for a in "${args[@]}"; do
-    if [ "$expect_method" -eq 1 ]; then method="$a"; expect_method=0; continue; fi
     case "$a" in
-      --method)                          expect_method=1 ;;
-      --method=*)                        method="${a#--method=}" ;;
-      --field|--raw-field|--input)       has_fields=1 ;;
-      --field=*|--raw-field=*|--input=*) has_fields=1 ;;
-      --*)                               : ;;
-      -[!-]*)
-        rest="${a#-}"
-        case "$rest" in
-          *X*)
-            after="${rest#*X}"
-            case "${rest%%X*}" in *[fF]*) has_fields=1 ;; esac
-            if [ -n "$after" ]; then method="$after"; else expect_method=1; fi ;;
-          *[fF]*) has_fields=1 ;;
-        esac ;;
-    esac
-  done
-  method="$(printf '%s' "$method" | tr '[:lower:]' '[:upper:]')"
-  [ -z "$method" ] && [ "$has_fields" -eq 1 ] && method="POST"
-  [ -z "$method" ] && method="GET"
-
-  # 2) メソッドは GET / POST / PATCH のみ（PUT / DELETE は宛先を問わず拒否）
-  case "$method" in
-    GET|POST|PATCH) : ;;
-    *) die "gh api の ${method} メソッドは許可されていません（GET / POST / PATCH のみ）" 3 ;;
-  esac
-
-  # 3) エンドポイント（最初の位置引数）を特定。値を取る api フラグは読み飛ばす。
-  #    クラスタ形式（-iXDELETE 等）は値フラグ一覧に一致しないので素通りするが、
-  #    その場合は次の引数が本来のエンドポイントになるため問題ない。
-  endpoint=""
-  skip=0
-  seen_api=0
-  for a in "${args[@]}"; do
-    if [ "$seen_api" -eq 0 ]; then seen_api=1; continue; fi   # "api" 自体
-    if [ "$skip" -eq 1 ]; then skip=0; continue; fi
-    case "$a" in
-      -X|--method|-f|--raw-field|-F|--field|-H|--header|-q|--jq|-t|--template|--input|-p|--preview|--cache|--hostname)
-        skip=1 ;;
-      -*) : ;;
-      *) endpoint="$a"; break ;;
-    esac
-  done
-  # gh が実際にリクエストするパスに正規化する。
-  # ? 以降（クエリ）と # 以降（フラグメント。gh/curl はサーバーに送らない）を除去。
-  # 例: 'git/refs/heads/x#/pulls/1/comments' は実際には git/refs/heads/x へのリクエスト。
-  ep="${endpoint%%[?#]*}"
-  ep="${ep%/}"            # 末尾スラッシュ除去
-
-  if [ "$method" != "GET" ]; then
-    # 書き込みを許可するエンドポイント（コメント本体 / スレッド返信 / リアクション）
-    case "$ep" in
-      */pulls/*/comments|*/issues/*/comments|\
-      */pulls/comments/*|*/issues/comments/*|\
-      */pulls/*/comments/*/replies|\
-      */pulls/comments/*/reactions|*/issues/comments/*/reactions|\
-      */pulls/*/comments/*/reactions|*/issues/*/comments/*/reactions)
+      --method|--method=*|--field|--field=*|--raw-field|--raw-field=*|--input|--input=*)
+        die "gh api は読み取り専用です（${a} は使えません）。書き込みは scripts/gh-review-reply.sh か gh pr create / gh pr comment を使ってください" 3 ;;
+      --*)
         : ;;
-      *reviews*)
-        die "gh api でのレビュー投稿（${endpoint}）は許可されていません（bot 承認の防止）" 3 ;;
-      *)
-        die "gh api の書き込みは ${method} ${endpoint:-（宛先不明）} — コメント／リアクション系エンドポイント以外は許可されていません" 3 ;;
+      -*[XfF]*)
+        die "gh api は読み取り専用です（${a} にメソッド/本文フラグが含まれます）。書き込みは scripts/gh-review-reply.sh か gh pr create / gh pr comment を使ってください" 3 ;;
+      graphql)
+        die "gh api graphql は許可されていません" 3 ;;
     esac
-  fi
+  done
 fi
 
 # --- トークンを注入して実行 -------------------------------------------------
