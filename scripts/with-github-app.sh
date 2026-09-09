@@ -118,6 +118,16 @@ export GH_EDITOR=false EDITOR=false VISUAL=false GIT_EDITOR=false
 export GH_BROWSER=false BROWSER=false
 export GH_PAGER=cat PAGER=cat
 
+# gh は内部で git を起動することがある（未 push ブランチでの gh pr create など）。
+# その git のフック（pre-push 等）も GH_TOKEN を継承するため、フック経由での
+# 迂回を防ぐ目的で gh の子プロセスではフックを無効化する。
+# （この env は gh とその子プロセスにのみ効き、手元の git 操作には影響しない）
+_gc_n="${GIT_CONFIG_COUNT:-0}"
+case "$_gc_n" in ''|*[!0-9]*) _gc_n=0 ;; esac
+eval "export GIT_CONFIG_KEY_${_gc_n}=core.hooksPath"
+eval "export GIT_CONFIG_VALUE_${_gc_n}=/nonexistent/with-github-app-no-hooks"
+export GIT_CONFIG_COUNT="$((_gc_n + 1))"
+
 # --- トークンを注入して実行 -------------------------------------------------
 TOKEN="$(cd "$SCRIPT_DIR/.." && npm run --silent gh-token)"
 export GH_TOKEN="$TOKEN"

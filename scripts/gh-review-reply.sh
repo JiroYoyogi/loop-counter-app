@@ -37,14 +37,34 @@ case "$comment_id" in ''|*[!0-9]*) die "コメント ID は数字で指定して
 
 # 宛先リポジトリは origin から導出する（呼び出し側に選ばせない）。
 origin="$(git -C "$SCRIPT_DIR/.." remote get-url origin 2>/dev/null || true)"
+[ -n "$origin" ] || die "origin が設定されていません" 5
+
+# スキームとホストは正規化してから判定する（credential helper と同じ扱い）。
+# https://GitHub.com/... や https://github.com:443/... も同一ホストとみなす。
+# パス部分は OWNER/REPO なので大小文字を保持する。
 case "$origin" in
-  https://github.com/*)
-    slug="${origin#https://github.com/}"
-    slug="${slug%.git}"
-    slug="${slug%/}" ;;
-  *)
-    die "origin が HTTPS の GitHub リモートではありません: ${origin:-（未設定）}" 5 ;;
+  *://*) : ;;
+  *) die "origin が HTTPS の GitHub リモートではありません: ${origin}" 5 ;;
 esac
+scheme="$(printf '%s' "${origin%%://*}" | tr '[:upper:]' '[:lower:]')"
+rest="${origin#*://}"
+hostpart="${rest%%/*}"
+path="${rest#*/}"
+
+# user:token@ が埋め込まれていると、git は credential helper を呼ばずに
+# その個人資格情報で操作してしまう（＝ App 名義に分離できない）。明示的に拒否する。
+case "$hostpart" in
+  *@*) die "origin に認証情報が埋め込まれています。App 名義で操作できないため拒否します（origin から user:token@ を取り除いてください）" 5 ;;
+esac
+
+host="$(printf '%s' "$hostpart" | tr '[:upper:]' '[:lower:]')"
+host="${host%:443}"
+if [ "$scheme" != "https" ] || [ "$host" != "github.com" ]; then
+  die "origin が HTTPS の GitHub リモートではありません: ${origin}" 5
+fi
+
+slug="${path%.git}"
+slug="${slug%/}"
 case "$slug" in
   */*/*|"") die "origin の OWNER/REPO を解釈できません: ${origin}" 5 ;;
   */*) : ;;

@@ -97,6 +97,14 @@ Claude Code などから `git` / `gh` を使う際の認証を、個人アカウ
    - 1行目の空文字は、既存 helper（osxkeychain 等）をこのホストで無効化するため。
    - 絶対パスで登録される（`.git/config`、Git 管理外）。リポジトリを移動したら
      登録し直す。
+   - **`origin` に認証情報を埋め込まないこと。** `https://user:token@github.com/...`
+     の形だと git は username/password が揃っていると判断して credential helper を
+     呼ばず、その個人トークンで push してしまう（helper のリセットでは防げない）。
+     確認:
+
+     ```bash
+     git remote get-url origin   # user:token@ が含まれていないこと
+     ```
 
 ### 使い方
 
@@ -168,6 +176,9 @@ npm run gh-token
 - あわせて、gh が起動しうる外部プロセスの指定先を無害化して exec する
   （`GH_EDITOR` / `EDITOR` / `VISUAL` / `GIT_EDITOR` → `false`、
   `GH_BROWSER` / `BROWSER` → `false`、`GH_PAGER` / `PAGER` → `cat`）。
+  gh が内部で git を起動する場合（未 push ブランチでの `gh pr create` など）に
+  備え、`core.hooksPath` を存在しないパスに向けて**フックも無効化**する
+  （gh とその子プロセスにのみ効き、手元の git 操作には影響しない）。
   フラグの拒否は分かりやすいエラーのためのもので、安全性はこの環境の
   無害化で担保する（引数の形に依存しないため取りこぼしが無い）。
   なお `--body` を省いた `gh pr comment` は既定でエディタを開くため、

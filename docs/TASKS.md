@@ -119,6 +119,8 @@
   `gh api graphql`。
 - `scripts/gh-review-reply.sh` は PR 番号・コメント ID が数字でなければ拒否し、
   宛先は `origin` から導出する（呼び出し側がリポジトリを指定できない）。
+  ホストは credential helper と同様に正規化し（`GitHub.com` / `github.com:443`
+  も受け付ける）、`user:token@` が埋め込まれた origin は拒否する。
 - `--web` / `-w` および `-e` / `--editor` を渡すと終了コード 3 で拒否される。
 - `GH_EDITOR` / `EDITOR` に任意のスクリプトを指定しても、ラッパー経由では
   そのスクリプトが起動しない（外部プロセスの指定先を無害化して exec する）。
