@@ -119,7 +119,10 @@ if [ "$sub1" = "api" ]; then
       *) endpoint="$a"; break ;;
     esac
   done
-  ep="${endpoint%%\?*}"   # クエリ除去
+  # gh が実際にリクエストするパスに正規化する。
+  # ? 以降（クエリ）と # 以降（フラグメント。gh/curl はサーバーに送らない）を除去。
+  # 例: 'git/refs/heads/x#/pulls/1/comments' は実際には git/refs/heads/x へのリクエスト。
+  ep="${endpoint%%[?#]*}"
   ep="${ep%/}"            # 末尾スラッシュ除去
 
   if [ "$method" != "GET" ]; then
