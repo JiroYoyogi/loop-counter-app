@@ -7,11 +7,14 @@
 # 設計方針: 許可リスト（default-deny）
 #   実行できるのは下記の gh サブコマンドだけ:
 #     pr create|view|list|status|checks|diff|comment|ready / repo view
-#     api （GET は任意。書き込み（GET 以外）はコメント／リアクション系の
-#           エンドポイントに限定。PUT / DELETE / graphql、および
-#           ref 更新・merges・PR 編集などその他の書き込みは不可）
+#     api （読み取り専用。メソッド/本文フラグを含む呼び出しは拒否）
 #   未知のサブコマンド・エイリアス・拡張は一律拒否。
 #   （deny リストを模倣するより、許可を絞るほうが穴が出にくい）
+#
+#   書き込みは「引数を解析して安全か判定する」のではなく、URL とメソッドを
+#   スクリプト側が組み立てる専用コマンドで行う:
+#     - レビュースレッドへの返信 … scripts/gh-review-reply.sh
+#     - PR 作成 / PR コメント     … gh pr create / gh pr comment（下記の例）
 #
 #   App トークンの権限は contents:write / pull_requests:write / metadata:read /
 #   （actions/issues/statuses は read）を前提。workflows 権限は付与しない
@@ -20,8 +23,8 @@
 # 例:
 #   scripts/with-github-app.sh gh pr create --fill
 #   scripts/with-github-app.sh gh pr view 7
+#   scripts/with-github-app.sh gh pr comment 7 --body '...'
 #   scripts/with-github-app.sh gh api repos/OWNER/REPO/pulls/7/comments
-#   scripts/with-github-app.sh gh api --method POST repos/O/R/pulls/7/comments/123/replies -f body=...
 
 set -euo pipefail
 
