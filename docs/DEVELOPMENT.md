@@ -89,12 +89,17 @@ Claude Code などから `git` / `gh` を使う際の認証を、個人アカウ
    HTTPS・github.com の認証を App トークンにする。
 
    ```bash
-   git config credential.https://github.com.helper ""
+   git config --replace-all credential.https://github.com.helper ""
    git config --add credential.https://github.com.helper \
      "$PWD/scripts/git-credential-github-app.sh"
    ```
 
    - 1行目の空文字は、既存 helper（osxkeychain 等）をこのホストで無効化するため。
+   - `--replace-all` を付けるのは、2回目以降（リポジトリ移動後の再登録など）に
+     既に複数値があると `git config <key> ""` が
+     `cannot overwrite multiple values with a single value` で失敗し、
+     見落とすと古い helper が新しい helper より先に残るため。
+     `--replace-all` なら何度実行しても同じ状態になる。
    - 絶対パスで登録される（`.git/config`、Git 管理外）。リポジトリを移動したら
      登録し直す。
    - **`origin` に認証情報を埋め込まないこと。** `https://user:token@github.com/...`

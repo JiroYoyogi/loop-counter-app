@@ -125,6 +125,8 @@
   `GIT_DIR` 等でリポジトリ解決先を差し替えられないよう、git 関連の環境変数を
   破棄してから `origin` を読む。
 - `--web` / `-w` および `-e` / `--editor` を渡すと終了コード 3 で拒否される。
+  `-dw` / `-de` のような結合形も対象（値が連結された `-L5` / `-q.number` /
+  `-bFixed the bug` などは対象外として通す）。
 - `GH_EDITOR` / `EDITOR` に任意のスクリプトを指定しても、ラッパー経由では
   そのスクリプトが起動しない（外部プロセスの指定先を無害化して exec する）。
 - `GIT_CONFIG_PARAMETERS` / `GIT_CONFIG_COUNT` に git 設定を仕込んでラッパーを
