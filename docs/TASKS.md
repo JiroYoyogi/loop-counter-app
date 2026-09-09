@@ -119,7 +119,9 @@
   `gh api graphql`。
 - `scripts/gh-review-reply.sh` は PR 番号・コメント ID が数字でなければ拒否し、
   宛先は `origin` から導出する（呼び出し側がリポジトリを指定できない）。
-- `--web` / `-w`（`-dw` のような結合形も）を渡すと終了コード 3 で拒否される。
+- `--web` / `-w` および `-e` / `--editor` を渡すと終了コード 3 で拒否される。
+- `GH_EDITOR` / `EDITOR` に任意のスクリプトを指定しても、ラッパー経由では
+  そのスクリプトが起動しない（外部プロセスの指定先を無害化して exec する）。
 - App トークンを取得できないとき、credential helper は `quit=1` を返して
   git を中断させる（個人認証へフォールバックしない）。
 - credential helper は `github.com` / `github.com:443` / `GitHub.com` の
