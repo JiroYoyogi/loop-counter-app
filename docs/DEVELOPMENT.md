@@ -81,40 +81,59 @@ Claude Code などから `git` / `gh` を使う際の認証を、個人アカウ
    - `GITHUB_APP_PRIVATE_KEY_PATH`: 既定のままなら `~/.config/github-apps/claude-code.pem`
    - `.env` と `.pem`、トークンキャッシュはいずれも Git 管理外（コミットしない）
 
+4. **git の credential helper を登録する**（クローンごとに1回）。
+   HTTPS・github.com の認証を App トークンにする。
+
+   ```bash
+   git config credential.https://github.com.helper ""
+   git config --add credential.https://github.com.helper \
+     "$PWD/scripts/git-credential-github-app.sh"
+   ```
+
+   - 1行目の空文字は、既存 helper（osxkeychain 等）をこのホストで無効化するため。
+   - 絶対パスで登録される（`.git/config`、Git 管理外）。リポジトリを移動したら
+     登録し直す。
+
 ### 使い方
 
-トークンだけ取得（stdout に1行）:
+**git**: 追加のコマンドは不要。`git push` / `git fetch`（HTTPS・github.com）が
+自動で App トークンを使う。
 
 ```bash
-npm run gh-token
+git push -u origin HEAD
 ```
 
-`git` / `gh` を App トークンで実行:
+**gh**: `scripts/with-github-app.sh` 経由で実行する（`GH_TOKEN` を注入）。
 
 ```bash
 scripts/with-github-app.sh gh pr create --fill
-scripts/with-github-app.sh git push -u origin HEAD
+scripts/with-github-app.sh gh pr view 7
+```
+
+**トークンだけ取得**（デバッグ用、stdout に1行）:
+
+```bash
+npm run gh-token
 ```
 
 - トークンは `~/.config/github-apps/claude-code.token.json`（`0600`、親ディレクトリ
   `0700`）にキャッシュされ、有効期限まで5分以上あれば再利用する。切れていれば
   自動で再発行する。保存先は固定で、変更用の設定は用意していない。
 - 秘密鍵・環境変数が無い場合は原因を示すメッセージを出して非ゼロ終了する。
-- `with-github-app.sh` の `git` 実行には **git 2.31 以上**が必要（トークンを
-  argv に載せず `GIT_CONFIG_*` 環境変数でヘッダを渡すため）。
-- `origin` が HTTPS の GitHub リモートでない場合、`with-github-app.sh git ...` は
-  「App トークンが使われない」と明示エラーで停止する。
-  `git remote set-url origin https://github.com/OWNER/REPO.git` で切り替える。
+- credential helper は github.com の HTTPS 以外には関与しない（他ホスト・SSH は
+  従来どおり）。SSH リモートでは App トークンは使われないため、App 経由で
+  操作したいリポジトリは HTTPS リモートにする。
 
 ### 制約
 
 - `.claude/settings.json` の deny リスト（`gh pr merge` / `gh pr review` /
   force push など）は App 化後も維持する。App 化の目的は操作主体の分離であり、
   権限を広げるものではない。
-- `with-github-app.sh` が実行できるのは `git` / `gh` のみ。`sh -c ...` 等での
-  迂回はトークン取得前に拒否する（終了コード 3）。
-- 禁止操作（`gh pr merge` 等）に相当するコマンドも同様に検出して拒否する
-  （終了コード 3）。
+- `git` は素の `git` として実行するため、deny リストが従来どおり照合される。
+- `gh` は `with-github-app.sh` 経由でのみ App トークンを使う。このラッパーは
+  `gh` 以外（`git` / `sh -c ...` 等）を実行できず、`gh pr merge` /
+  `gh pr review` / `gh repo delete` / `gh api` の DELETE もトークン取得前に
+  拒否する（終了コード 3）。
 
 ## ローカル動作確認
 

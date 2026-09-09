@@ -80,6 +80,11 @@
   - 取得したトークンはキャッシュ（`~/.config/github-apps/claude-code.token.json` 等、
     リポジトリ外）し、有効期限内なら再利用、期限切れ・残り僅かなら再発行する。
   - 標準出力に有効なトークンだけを返す（`git` / `gh` から利用できる形）。
+- `git` は credential helper（`scripts/git-credential-github-app.sh`）で認証する。
+  クローンごとに `git config` で登録する（手順は `docs/DEVELOPMENT.md`）。
+  ラッパーで `git` をくるまないため、deny リストの照合は従来どおり効く。
+- `gh` は `scripts/with-github-app.sh` 経由で実行する（`GH_TOKEN` を注入）。
+  ラッパーは `gh` 以外を実行できず、deny 相当（`gh pr merge` 等）を拒否する。
 - ライブラリ追加あり。`@octokit/auth-app`（App 認証）と `tsx`（TS 実行）を
   `devDependencies` に追加する。`node_modules/` は `.gitignore` 済み。
 - `docs/DEVELOPMENT.md` に GitHub App のセットアップ手順と使い方を追記する。
@@ -94,8 +99,12 @@
   （App ID・インストール ID・秘密鍵パス）を用意した状態で
   `npx tsx scripts/github-app-auth.ts` を実行すると、有効なインストール
   アクセストークンが標準出力に1行で返る。
-- 取得したトークンで `gh` / `git` の読み取り操作（例: `gh repo view`、
-  `git ls-remote`）と PR 作成に必要な書き込み操作が成功する。
+- credential helper 登録後、`git ls-remote origin` / `git push`（HTTPS）が
+  App トークンで成功する（`git credential fill` の password が `ghs_` で始まる）。
+- `scripts/with-github-app.sh gh ...` で読み取り（例: `gh repo view`）と
+  PR 作成が成功する。
+- `scripts/with-github-app.sh` に `git` や `sh -c ...`、`gh pr merge` 等を
+  渡すと、トークン取得前に終了コード 3 で拒否される。
 - 2回目以降の実行では、キャッシュした未期限切れトークンを再利用し、
   GitHub への新規リクエストを行わない。
 - キャッシュされたトークンが期限切れ（または残り 5 分未満）の場合は
