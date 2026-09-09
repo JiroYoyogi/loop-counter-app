@@ -133,6 +133,8 @@
 - `GIT_CONFIG_PARAMETERS` / `GIT_CONFIG_COUNT` に git 設定を仕込んでラッパーを
   起動しても、gh から見える git の実効設定に `core.hooksPath` の上書きや
   `extraheader` の注入が現れない。
+- `CDPATH` が export された環境でも、3スクリプトすべてが正常に動作する
+  （`cd` の出力がスクリプトのパス解決やトークン取得に混入しない）。
 - `GIT_DIR` に別クローンを指定して `scripts/gh-review-reply.sh` を実行しても、
   投稿先は `origin`（このリポジトリ）のままになる。
 - `GITHUB_APP_PRIVATE_KEY_PATH` がディレクトリを指す場合も、キャッシュが

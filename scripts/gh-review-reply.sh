@@ -19,7 +19,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# CDPATH が export されていると cd が解決先を stdout に出し、コマンド置換に
+# 混入して SCRIPT_DIR が壊れる。CDPATH= で無効化し、-- でパスを引数として固定する。
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die() {
   echo "[gh-review-reply] $1" >&2
@@ -97,7 +99,7 @@ else
   body_json="$(node -e 'const fs=require("fs");process.stdout.write(JSON.stringify({body:fs.readFileSync(process.argv[1],"utf8")}))' "$body_src")"
 fi
 
-TOKEN="$(cd "$SCRIPT_DIR/.." && npm run --silent gh-token)"
+TOKEN="$(CDPATH= cd -- "$SCRIPT_DIR/.." && npm run --silent gh-token)"
 export GH_TOKEN="$TOKEN"
 export GITHUB_TOKEN="$TOKEN"
 

@@ -28,7 +28,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# CDPATH が export されていると cd が解決先を stdout に出し、コマンド置換に
+# 混入して SCRIPT_DIR が壊れる。CDPATH= で無効化し、-- でパスを引数として固定する。
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die() {
   echo "[with-github-app] $1" >&2
@@ -154,7 +156,7 @@ export GIT_CONFIG_VALUE_0=/nonexistent/with-github-app-no-hooks
 # --- トークンを注入して実行 -------------------------------------------------
 # 空トークンを export すると gh は「未設定」とみなして保存済みの個人認証へ
 # フォールバックする。取得できなければ fail closed で止める。
-if ! TOKEN="$(cd "$SCRIPT_DIR/.." && npm run --silent gh-token)" || [ -z "$TOKEN" ]; then
+if ! TOKEN="$(CDPATH= cd -- "$SCRIPT_DIR/.." && npm run --silent gh-token)" || [ -z "$TOKEN" ]; then
   die "App トークンを取得できませんでした。個人認証へフォールバックせず中断します" 4
 fi
 export GH_TOKEN="$TOKEN"
