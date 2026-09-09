@@ -126,9 +126,13 @@ function isFresh(cache: TokenCache, installationId: string): boolean {
 }
 
 /**
- * キャッシュとその親ディレクトリを「自分だけが読める」権限に矯正する。
+ * キャッシュとその親ディレクトリの権限を 0600 / 0700 ちょうどに揃える。
  * writeCache() の chmod はキャッシュミス時にしか走らないため、ヒット時にも
- * ここで確認する。矯正できない場合はトークンを返さず中断する（fail closed）。
+ * ここで確認する。揃えられない場合はトークンを返さず中断する（fail closed）。
+ *
+ * 緩すぎる権限（0644 など）だけでなく、厳しすぎる権限（0400 / 0500 など）も
+ * 揃える。0400 のままだと期限切れ時に writeFileSync が EACCES で失敗し、
+ * トークンの自動再発行ができなくなるため。
  */
 function enforceCachePermissions(): void {
   const abs = expandHome(CACHE_PATH);
@@ -138,16 +142,16 @@ function enforceCachePermissions(): void {
     [abs, 0o600],
   ] as const) {
     const current = statSync(target).mode & 0o777;
-    if ((current & 0o077) === 0) continue; // group / other に権限が無ければそのまま
+    if (current === mode) continue;
     try {
       chmodSync(target, mode);
       process.stderr.write(
-        `権限を ${mode.toString(8)} に矯正しました: ${target}\n`,
+        `権限を ${current.toString(8)} から ${mode.toString(8)} に揃えました: ${target}\n`,
       );
     } catch {
       throw new ConfigError(
         `${target} の権限を ${mode.toString(8)} に変更できません。\n` +
-          `トークンが他ユーザーから読める状態のため中断します。`,
+          `トークンの保護と自動再発行を保証できないため中断します。`,
       );
     }
   }
