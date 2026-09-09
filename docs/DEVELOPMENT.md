@@ -125,14 +125,26 @@ git push -u origin HEAD
 
 - `gh pr create|view|list|status|checks|diff|comment|ready`
 - `gh repo view`
-- `gh api` — **読み取り専用**。メソッド／本文を指定しうるフラグ
-  （`-X` / `--method` / `-f` / `-F` / `--field` / `--raw-field` / `--input`、
-  および `-iXPOST` のような結合形）が1つでもあれば拒否する。
-  これらが無い `gh api` は必ず GET になるので、宛先を問わず書き込みは起きない。
-  あわせて `Authorization:` を含む引数も拒否する（`-H` で渡すと注入した App
-  トークンより優先され、個人認証で実行されてしまうため）
+- `gh api` — **読み取り専用**。`--method` / `--field` / `--raw-field` /
+  `--input` が1つでもあれば拒否する。これらが無い `gh api` は必ず GET に
+  なるので、宛先を問わず書き込みは起きない。あわせて `Authorization:` を
+  含む引数も拒否する（ヘッダで渡すと注入した App トークンより優先され、
+  個人認証で実行されてしまうため）
 
 それ以外・エイリアス・拡張は終了コード 3 で拒否する。
+
+**引数はロングオプションのみ受け付ける。** `-` に英字が続く引数
+（`-q` / `-L` / `-w` / `-dw` / `-bFixed` など）は一律で拒否する。
+
+```bash
+scripts/with-github-app.sh gh pr view 7 --json number --jq .number   # OK
+scripts/with-github-app.sh gh pr view 7 --json number -q .number     # 拒否
+```
+
+引数の見た目からフラグか値かを推測すると、`-dw` のような結合形を取りこぼす
+一方で `-bFixed` のような値の連結を誤検知する。どちらに寄せても破綻するため、
+推測をやめて入力の形を絞っている。値そのものはダッシュで始まらない限り
+影響を受けない（`- 箇条書き` のような本文は通る）。
 
 書き込みが必要な操作は、引数を解析して安全性を判定するのではなく、
 **専用スクリプト**または許可済みサブコマンドを使う:
@@ -183,9 +195,10 @@ npm run gh-token
   force push など）は App 化後も維持する。App 化の目的は操作主体の分離であり、
   権限を広げるものではない。
 - `git` は素の `git` として実行するため、deny リストが従来どおり照合される。
-- `--web` / `-w`、`-e` / `--editor` はラッパーで拒否する。前者はブラウザ側の
-  個人アカウントで PR やコメントが作られ、後者は外部エディタが `GH_TOKEN` を
-  継承して起動するため。
+- `--web` / `--editor` はラッパーで拒否する。前者はブラウザ側の個人アカウントで
+  PR やコメントが作られ、後者は外部エディタが `GH_TOKEN` を継承して起動するため。
+  短縮形（`-w` / `-e`、`-dw` のような結合形）は「短縮フラグ一律拒否」により
+  自動的に不可になる。
 - あわせて、gh が起動しうる外部プロセスの指定先を無害化して exec する
   （`GH_EDITOR` / `EDITOR` / `VISUAL` / `GIT_EDITOR` → `false`、
   `GH_BROWSER` / `BROWSER` → `false`、`GH_PAGER` / `PAGER` → `cat`）。

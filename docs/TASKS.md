@@ -114,19 +114,20 @@
 - `scripts/with-github-app.sh` に次を渡すと、トークン取得前に終了コード 3 で拒否される:
   `gh pr merge`、`gh -R o/r pr merge`、エイリアス、`git`、`sh -c ...`、
   `gh api` にメソッド／本文フラグを含むもの
-  （`-X` / `--method` / `-f` / `-F` / `--field` / `--raw-field` / `--input`、
-  `-iXDELETE` のような結合形、`--input -XGET` のような値経由の細工を含む）、
-  `gh api graphql`、`gh api` に `Authorization:` を含む引数
-  （`-H 'Authorization: ...'` 等。App トークンを上書きして個人認証になるため）。
+  （`--method` / `--field` / `--raw-field` / `--input`）、`gh api graphql`、
+  `gh api` に `Authorization:` を含む引数
+  （App トークンを上書きして個人認証になるため）。
 - `scripts/gh-review-reply.sh` は PR 番号・コメント ID が数字でなければ拒否し、
   宛先は `origin` から導出する（呼び出し側がリポジトリを指定できない）。
   ホストは credential helper と同様に正規化し（`GitHub.com` / `github.com:443`
   も受け付ける）、`user:token@` が埋め込まれた origin は拒否する。
   `GIT_DIR` 等でリポジトリ解決先を差し替えられないよう、git 関連の環境変数を
   破棄してから `origin` を読む。
-- `--web` / `-w` および `-e` / `--editor` を渡すと終了コード 3 で拒否される。
-  `-dw` / `-de` のような結合形も対象（値が連結された `-L5` / `-q.number` /
-  `-bFixed the bug` などは対象外として通す）。
+- ラッパーはロングオプションのみ受け付ける。`-` に英字が続く引数
+  （`-w` / `-e` / `-dw` / `-de` / `-q` / `-bFixed` など）は一律で終了コード 3
+  で拒否され、`--web` / `--editor` は理由付きのメッセージで拒否される。
+  外部プロセス（エディタ・ブラウザ・ページャ）の起動は、フラグ判定ではなく
+  環境変数の無害化で防ぐ。
 - `GH_EDITOR` / `EDITOR` に任意のスクリプトを指定しても、ラッパー経由では
   そのスクリプトが起動しない（外部プロセスの指定先を無害化して exec する）。
 - `GIT_CONFIG_PARAMETERS` / `GIT_CONFIG_COUNT` に git 設定を仕込んでラッパーを
