@@ -127,8 +127,8 @@ function isFresh(cache: TokenCache, installationId: string): boolean {
 
 /**
  * キャッシュとその親ディレクトリの権限を 0600 / 0700 ちょうどに揃える。
- * writeCache() の chmod はキャッシュミス時にしか走らないため、ヒット時にも
- * ここで確認する。揃えられない場合はトークンを返さず中断する（fail closed）。
+ * main() の先頭で鮮度に関わらず一度だけ呼ぶ。揃えられない場合はトークンを
+ * 返さず中断する（fail closed）。対象が未作成なら何もしない。
  *
  * 緩すぎる権限（0644 など）だけでなく、厳しすぎる権限（0400 / 0500 など）も
  * 揃える。0400 のままだと期限切れ時に writeFileSync が EACCES で失敗し、
@@ -141,7 +141,12 @@ function enforceCachePermissions(): void {
     [dir, 0o700],
     [abs, 0o600],
   ] as const) {
-    const current = statSync(target).mode & 0o777;
+    let current: number;
+    try {
+      current = statSync(target).mode & 0o777;
+    } catch {
+      continue; // 未作成。writeCache() が作成時に正しい権限を付ける
+    }
     if (current === mode) continue;
     try {
       chmodSync(target, mode);
@@ -186,9 +191,13 @@ async function main(): Promise<void> {
   // キャッシュが切れるまで（最大1時間）成功し続け、設定不備の発覚が遅れる。
   assertPrivateKeyReadable(privateKeyPath);
 
+  // 鮮度に関わらず先に権限を揃える。キャッシュヒット時の保護だけでなく、
+  // 期限切れ時の再発行（writeFileSync）が 0400 の既存ファイルで EACCES に
+  // なるのを防ぐため。
+  enforceCachePermissions();
+
   const cached = readCache();
   if (cached && isFresh(cached, installationId)) {
-    enforceCachePermissions();
     process.stderr.write("cache hit: 未期限切れのトークンを再利用します\n");
     process.stdout.write(cached.token + "\n");
     return;
