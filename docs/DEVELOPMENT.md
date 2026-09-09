@@ -187,6 +187,11 @@ npm run gh-token
   gh が内部で git を起動する場合（未 push ブランチでの `gh pr create` など）に
   備え、`core.hooksPath` を存在しないパスに向けて**フックも無効化**する
   （gh とその子プロセスにのみ効き、手元の git 操作には影響しない）。
+- あわせて、呼び出し元から継承した git のコマンドライン設定を破棄する
+  （`GIT_CONFIG_PARAMETERS` を unset し、`GIT_CONFIG_COUNT` を 1 に固定）。
+  これらは環境変数だけで（ファイルの配置なしに）`core.hooksPath` を
+  上書きしたり、`http.<url>.extraheader` に個人の Authorization を注入して
+  gh 内部の `git push` を個人名義にしたりできるため。
   フラグの拒否は分かりやすいエラーのためのもので、安全性はこの環境の
   無害化で担保する（引数の形に依存しないため取りこぼしが無い）。
   なお `--body` を省いた `gh pr comment` は既定でエディタを開くため、

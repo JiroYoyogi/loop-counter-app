@@ -125,6 +125,9 @@
 - `--web` / `-w` および `-e` / `--editor` を渡すと終了コード 3 で拒否される。
 - `GH_EDITOR` / `EDITOR` に任意のスクリプトを指定しても、ラッパー経由では
   そのスクリプトが起動しない（外部プロセスの指定先を無害化して exec する）。
+- `GIT_CONFIG_PARAMETERS` / `GIT_CONFIG_COUNT` に git 設定を仕込んでラッパーを
+  起動しても、gh から見える git の実効設定に `core.hooksPath` の上書きや
+  `extraheader` の注入が現れない。
 - App トークンを取得できないとき、credential helper は `quit=1` を返して
   git を中断させる（個人認証へフォールバックしない）。
 - credential helper は `github.com` / `github.com:443` / `GitHub.com` の

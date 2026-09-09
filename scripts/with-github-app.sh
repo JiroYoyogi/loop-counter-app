@@ -133,12 +133,20 @@ export GH_PAGER=cat PAGER=cat
 # gh は内部で git を起動することがある（未 push ブランチでの gh pr create など）。
 # その git のフック（pre-push 等）も GH_TOKEN を継承するため、フック経由での
 # 迂回を防ぐ目的で gh の子プロセスではフックを無効化する。
+#
+# その前に、呼び出し元から継承した git のコマンドライン設定を破棄する。
+# 環境変数だけで（ファイルの配置なしに）次の2つが成立してしまうため:
+#   - GIT_CONFIG_PARAMETERS は GIT_CONFIG_COUNT より優先されるので、
+#     残すと下の hooksPath 無効化がそのまま上書きされる
+#   - http.<url>.extraheader に個人の Authorization を注入されると、
+#     gh が内部で行う git push が個人の資格情報で実行される
+# GIT_CONFIG_COUNT=1 に固定することで、git が読むのは下で設定する
+# KEY_0 / VALUE_0 だけになり、継承された KEY_1 以降は参照されない。
 # （この env は gh とその子プロセスにのみ効き、手元の git 操作には影響しない）
-_gc_n="${GIT_CONFIG_COUNT:-0}"
-case "$_gc_n" in ''|*[!0-9]*) _gc_n=0 ;; esac
-eval "export GIT_CONFIG_KEY_${_gc_n}=core.hooksPath"
-eval "export GIT_CONFIG_VALUE_${_gc_n}=/nonexistent/with-github-app-no-hooks"
-export GIT_CONFIG_COUNT="$((_gc_n + 1))"
+unset GIT_CONFIG_PARAMETERS
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0=core.hooksPath
+export GIT_CONFIG_VALUE_0=/nonexistent/with-github-app-no-hooks
 
 # --- トークンを注入して実行 -------------------------------------------------
 # 空トークンを export すると gh は「未設定」とみなして保存済みの個人認証へ
