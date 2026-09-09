@@ -116,7 +116,8 @@
   `gh api` にメソッド／本文フラグを含むもの
   （`-X` / `--method` / `-f` / `-F` / `--field` / `--raw-field` / `--input`、
   `-iXDELETE` のような結合形、`--input -XGET` のような値経由の細工を含む）、
-  `gh api graphql`。
+  `gh api graphql`、`gh api` に `Authorization:` を含む引数
+  （`-H 'Authorization: ...'` 等。App トークンを上書きして個人認証になるため）。
 - `scripts/gh-review-reply.sh` は PR 番号・コメント ID が数字でなければ拒否し、
   宛先は `origin` から導出する（呼び出し側がリポジトリを指定できない）。
   ホストは credential helper と同様に正規化し（`GitHub.com` / `github.com:443`
