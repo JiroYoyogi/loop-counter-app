@@ -111,6 +111,19 @@ Claude Code などから `git` / `gh` を使う際の認証を、個人アカウ
      git remote get-url origin   # user:token@ が含まれていないこと
      ```
 
+   - **`~/.gitconfig` に github.com 向けの認証ヘッダを書かないこと。**
+     `http.https://github.com/.extraHeader = Authorization: Bearer <token>`
+     があると、git は credential helper を呼ばずそのヘッダで認証するため、
+     `git push` も `gh` 内部の push も個人アカウントで実行される。確認:
+
+     ```bash
+     git config --get-regexp extraheader   # 何も出ないこと
+     ```
+
+     ※ 上の2点は「グローバル設定が App 認証を上書きする」ケースで、
+     スクリプト側では防げない（ラッパーを通さない素の `git push` にも効くため）。
+     セットアップ時に確認する運用とする。
+
 ### 使い方
 
 **git**: 追加のコマンドは不要。`git push` / `git fetch`（HTTPS・github.com）が
