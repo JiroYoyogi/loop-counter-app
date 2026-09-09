@@ -6,14 +6,21 @@
 #
 # 設計方針: 許可リスト（default-deny）
 #   実行できるのは下記の gh サブコマンドだけ:
-#     pr create|view|list|status|checks|diff|comment|ready / repo view / api(GET)
-#   未知のサブコマンド・エイリアス・拡張・`gh api` のメソッド指定は一律拒否。
+#     pr create|view|list|status|checks|diff|comment|ready / repo view
+#     api （REST の GET / POST / PATCH のみ。PUT / DELETE / graphql は不可。
+#           レビュー投稿 *(.../reviews)* への書き込みも不可）
+#   未知のサブコマンド・エイリアス・拡張は一律拒否。
 #   （deny リストを模倣するより、許可を絞るほうが穴が出にくい）
+#
+#   App トークンの権限は contents:write / pull_requests:write / metadata:read /
+#   （actions/issues/statuses は read）を前提。workflows 権限は付与しない
+#   （ワークフロー変更を含む push は GitHub 側で拒否される）。
 #
 # 例:
 #   scripts/with-github-app.sh gh pr create --fill
 #   scripts/with-github-app.sh gh pr view 7
 #   scripts/with-github-app.sh gh api repos/OWNER/REPO/pulls/7/comments
+#   scripts/with-github-app.sh gh api --method POST repos/O/R/pulls/7/comments/123/replies -f body=...
 
 set -euo pipefail
 
@@ -56,15 +63,58 @@ case "$sub1 $sub2" in
     die "許可されていない gh 操作です: gh $* （許可リストは ${0} を参照）" 3 ;;
 esac
 
-# --- gh api は GET のみ許可（メソッド指定は一律不可）------------------------
-# -X / --method のあらゆる形式（-X DELETE / --method=PUT / 結合された -iXDELETE 等）
-# を、値を解析せず「メソッドフラグの存在」だけで拒否する。GET は既定なので不要。
+# --- gh api: REST の GET / POST / PATCH のみ許可 ---------------------------
+# 拒否するもの:
+#   - PUT / DELETE（マージ・ファイル直書き・ブランチ削除など）
+#   - graphql エンドポイント（任意 mutation を実行できる）
+#   - */reviews への書き込み（bot による PR 承認の防止）
+# 引数の位置解析はせず、「危険を示すトークンが含まれるか」で判定する。
 if [ "$sub1" = "api" ]; then
+  # 1) メソッド抽出（-X M / -XM / --method M / --method=M / 結合クラスタ -iXM）。
+  #    明示メソッドが無く -f/-F/--field 等があれば gh は POST になる。
+  method=""
+  has_fields=0
+  expect_method=0
+  for a in "${args[@]}"; do
+    if [ "$expect_method" -eq 1 ]; then method="$a"; expect_method=0; continue; fi
+    case "$a" in
+      --method)                          expect_method=1 ;;
+      --method=*)                        method="${a#--method=}" ;;
+      --field|--raw-field|--input)       has_fields=1 ;;
+      --field=*|--raw-field=*|--input=*) has_fields=1 ;;
+      --*)                               : ;;
+      -[!-]*)
+        rest="${a#-}"
+        case "$rest" in
+          *X*)
+            after="${rest#*X}"
+            case "${rest%%X*}" in *[fF]*) has_fields=1 ;; esac
+            if [ -n "$after" ]; then method="$after"; else expect_method=1; fi ;;
+          *[fF]*) has_fields=1 ;;
+        esac ;;
+    esac
+  done
+  method="$(printf '%s' "$method" | tr '[:lower:]' '[:upper:]')"
+  [ -z "$method" ] && [ "$has_fields" -eq 1 ] && method="POST"
+  [ -z "$method" ] && method="GET"
+
+  case "$method" in
+    GET|POST|PATCH) : ;;
+    *) die "gh api の ${method} メソッドは許可されていません（GET / POST / PATCH のみ）" 3 ;;
+  esac
+
+  # 2) graphql / reviews への書き込みを含むか（全引数を走査）
   for a in "${args[@]}"; do
     case "$a" in
-      --method|--method=*) die "gh api はメソッド指定不可（GET のみ許可）" 3 ;;
-      -*X*)                die "gh api はメソッド指定不可（GET のみ許可）" 3 ;;
+      graphql|/graphql|graphql\?*|/graphql\?*)
+        die "gh api graphql は許可されていません（任意 mutation を実行できるため）" 3 ;;
     esac
+    if [ "$method" != "GET" ]; then
+      case "$a" in
+        */reviews|*/reviews/*|*/reviews\?*)
+          die "gh api でのレビュー投稿（${a}）は許可されていません（bot 承認の防止）" 3 ;;
+      esac
+    fi
   done
 fi
 

@@ -59,8 +59,12 @@ Claude Code などから `git` / `gh` を使う際の認証を、個人アカウ
 ### セットアップ（1回だけ）
 
 1. GitHub App を作成し、対象リポジトリにインストールする（作成済みならスキップ）。
-   - 必要な権限の目安: `Contents: Read and write`、`Pull requests: Read and write`、
-     `Metadata: Read-only`
+   - 付与する権限は**最小限**にする:
+     `Contents: Read and write`（push）、`Pull requests: Read and write`
+     （PR 作成・コメント）、`Metadata: Read-only`。
+   - `Workflows` 権限は**付与しない**（`.github/workflows/` を変更する push は
+     GitHub 側で拒否される。CI 変更は人手で push する）。
+   - `Actions` は付与するとしても Read のみ。
 2. App の秘密鍵（`.pem`）を**リポジトリ外**に置く:
 
    ```bash
@@ -105,9 +109,14 @@ git push -u origin HEAD
 
 **gh**: `scripts/with-github-app.sh` 経由で実行する（`GH_TOKEN` を注入）。
 このラッパーは**許可リスト方式**で、実行できるのは次の操作だけ:
-`gh pr create|view|list|status|checks|diff|comment|ready` / `gh repo view` /
-`gh api`（GET のみ／メソッド指定不可）。それ以外・エイリアス・拡張は
-終了コード 3 で拒否する。
+
+- `gh pr create|view|list|status|checks|diff|comment|ready`
+- `gh repo view`
+- `gh api` — REST の GET / POST / PATCH のみ。`PUT` / `DELETE` /
+  `graphql` / `*/reviews` への書き込み（＝ bot による PR 承認）は不可
+
+それ以外・エイリアス・拡張は終了コード 3 で拒否する。
+（レビュースレッドへの返信は `gh api --method POST .../replies` で可能）
 
 ```bash
 scripts/with-github-app.sh gh pr create --fill
@@ -135,9 +144,15 @@ npm run gh-token
   権限を広げるものではない。
 - `git` は素の `git` として実行するため、deny リストが従来どおり照合される。
 - `gh` は `with-github-app.sh` 経由でのみ App トークンを使う。ラッパーは
-  許可リスト方式（default-deny）で、`gh` 以外や許可外サブコマンド、
-  `gh api` のメソッド指定はトークン取得前に拒否する（終了コード 3）。
-  必要な操作が増えたらラッパーの許可リストに1行足す。
+  許可リスト方式（default-deny）。`gh` 以外・許可外サブコマンド・エイリアス・
+  拡張、および `gh api` の `PUT`/`DELETE`/`graphql`/`*/reviews` 書き込みを
+  トークン取得前に拒否する（終了コード 3）。必要な読み取り・コメント系が
+  増えたら許可リストに1行足す。
+- ラッパーで防ぎきれない範囲（`gh api` POST で PR にコメントを付ける等）は
+  低リスクとして許容する。マージ・force push・ブランチ削除・リポジトリ設定は
+  ラッパー／deny リスト／`main` のブランチ保護で多重にブロックされる。
+- bot による PR 承認は、ラッパーで `*/reviews` 書き込みを禁止して防ぐ。
+  加えて、必要なら CODEOWNERS で人によるレビューを必須にする。
 
 ## ローカル動作確認
 

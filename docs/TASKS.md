@@ -84,8 +84,11 @@
   クローンごとに `git config` で登録する（手順は `docs/DEVELOPMENT.md`）。
   ラッパーで `git` をくるまないため、deny リストの照合は従来どおり効く。
 - `gh` は `scripts/with-github-app.sh` 経由で実行する（`GH_TOKEN` を注入）。
-  ラッパーは許可リスト方式（default-deny）で、許可した gh サブコマンド以外・
-  エイリアス・拡張・`gh api` のメソッド指定（GET 以外）を拒否する。
+  ラッパーは許可リスト方式（default-deny）。許可 gh サブコマンド以外・
+  エイリアス・拡張、`gh api` の `PUT`/`DELETE`/`graphql`/`*/reviews` 書き込みを
+  拒否する（`gh api` の GET/POST/PATCH は許可 → bot 名義のレビュー返信が可能）。
+- App の権限は最小限（`contents:write` / `pull_requests:write` / `metadata:read`）。
+  `workflows` は付与しない。
 - ライブラリ追加あり。`@octokit/auth-app`（App 認証）と `tsx`（TS 実行）を
   `devDependencies` に追加する。`node_modules/` は `.gitignore` 済み。
 - `docs/DEVELOPMENT.md` に GitHub App のセットアップ手順と使い方を追記する。
@@ -103,10 +106,11 @@
 - credential helper 登録後、`git ls-remote origin` / `git push`（HTTPS）が
   App トークンで成功する（`git credential fill` の password が `ghs_` で始まる）。
 - `scripts/with-github-app.sh gh ...` で許可リスト内の操作（`gh pr create` /
-  `gh pr view` / `gh api` GET など）が成功する。
-- `scripts/with-github-app.sh` に許可外（`gh pr merge`、`gh -R o/r pr merge`、
-  エイリアス、`gh api --method`（`-iXDELETE` 等の結合形も）、`git`、`sh -c ...`）を渡すと、
-  トークン取得前に終了コード 3 で拒否される。
+  `gh pr view` / `gh api` GET / `gh api --method POST .../replies` など）が成功する。
+- `scripts/with-github-app.sh` に次を渡すと、トークン取得前に終了コード 3 で拒否される:
+  `gh pr merge`、`gh -R o/r pr merge`、エイリアス、`git`、`sh -c ...`、
+  `gh api` の `PUT`/`DELETE`（`-iXDELETE` 等の結合形も）/`graphql`/
+  `*/reviews` への書き込み。
 - 2回目以降の実行では、キャッシュした未期限切れトークンを再利用し、
   GitHub への新規リクエストを行わない。
 - キャッシュされたトークンが期限切れ（または残り 5 分未満）の場合は
