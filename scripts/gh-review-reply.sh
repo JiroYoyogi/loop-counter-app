@@ -36,6 +36,15 @@ case "$pr" in ''|*[!0-9]*) die "PR 番号は数字で指定してください: $
 case "$comment_id" in ''|*[!0-9]*) die "コメント ID は数字で指定してください: ${comment_id}" 2 ;; esac
 
 # 宛先リポジトリは origin から導出する（呼び出し側に選ばせない）。
+#
+# その前に、git のリポジトリ解決先と設定を差し替える環境変数を破棄する。
+# GIT_DIR は `git -C` より優先されるため、これを残すと呼び出し側が別クローンを
+# 指定でき、そのクローンの origin から slug が作られて意図しないリポジトリへ
+# 投稿できてしまう（＝宛先を固定するという前提が崩れる）。
+# いずれも環境変数だけで成立し、ファイルの配置を必要としない。
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_CEILING_DIRECTORIES
+unset GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
+
 origin="$(git -C "$SCRIPT_DIR/.." remote get-url origin 2>/dev/null || true)"
 [ -n "$origin" ] || die "origin が設定されていません" 5
 

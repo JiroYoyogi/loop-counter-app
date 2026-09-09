@@ -122,12 +122,18 @@
   宛先は `origin` から導出する（呼び出し側がリポジトリを指定できない）。
   ホストは credential helper と同様に正規化し（`GitHub.com` / `github.com:443`
   も受け付ける）、`user:token@` が埋め込まれた origin は拒否する。
+  `GIT_DIR` 等でリポジトリ解決先を差し替えられないよう、git 関連の環境変数を
+  破棄してから `origin` を読む。
 - `--web` / `-w` および `-e` / `--editor` を渡すと終了コード 3 で拒否される。
 - `GH_EDITOR` / `EDITOR` に任意のスクリプトを指定しても、ラッパー経由では
   そのスクリプトが起動しない（外部プロセスの指定先を無害化して exec する）。
 - `GIT_CONFIG_PARAMETERS` / `GIT_CONFIG_COUNT` に git 設定を仕込んでラッパーを
   起動しても、gh から見える git の実効設定に `core.hooksPath` の上書きや
   `extraheader` の注入が現れない。
+- `GIT_DIR` に別クローンを指定して `scripts/gh-review-reply.sh` を実行しても、
+  投稿先は `origin`（このリポジトリ）のままになる。
+- `GITHUB_APP_PRIVATE_KEY_PATH` がディレクトリを指す場合も、キャッシュが
+  有効なうちに原因を表示して非ゼロ終了する。
 - App トークンを取得できないとき、credential helper は `quit=1` を返して
   git を中断させる（個人認証へフォールバックしない）。
 - credential helper は `github.com` / `github.com:443` / `GitHub.com` の

@@ -143,7 +143,10 @@ export GH_PAGER=cat PAGER=cat
 # GIT_CONFIG_COUNT=1 に固定することで、git が読むのは下で設定する
 # KEY_0 / VALUE_0 だけになり、継承された KEY_1 以降は参照されない。
 # （この env は gh とその子プロセスにのみ効き、手元の git 操作には影響しない）
-unset GIT_CONFIG_PARAMETERS
+unset GIT_CONFIG_PARAMETERS GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
+# gh はカレントディレクトリの git リモートから対象リポジトリを決める。
+# GIT_DIR は `git -C` より優先されるため、残すと解決先を差し替えられる。
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_CEILING_DIRECTORIES
 export GIT_CONFIG_COUNT=1
 export GIT_CONFIG_KEY_0=core.hooksPath
 export GIT_CONFIG_VALUE_0=/nonexistent/with-github-app-no-hooks

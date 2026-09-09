@@ -16,7 +16,7 @@
  * 有効期限まで5分以上あれば再利用する（キャッシュ先はリポジトリ外に固定）。
  */
 
-import { readFileSync, writeFileSync, mkdirSync, chmodSync, accessSync, constants } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync, accessSync, statSync, constants } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,8 +58,9 @@ function isValidToken(v: unknown): v is string {
 }
 
 /**
- * 秘密鍵が読めることだけを確認する（内容は読まない）。
+ * 秘密鍵が「読み取り可能な通常ファイル」であることを確認する（内容は読まない）。
  * キャッシュヒット時でも設定不備をその場で検知するために使う。
+ * accessSync だけだと読めるディレクトリでも成功してしまうため isFile() も見る。
  */
 function assertPrivateKeyReadable(path: string): void {
   const abs = expandHome(path);
@@ -69,6 +70,12 @@ function assertPrivateKeyReadable(path: string): void {
     throw new ConfigError(
       `秘密鍵を読み込めません: ${abs}\n` +
         `GITHUB_APP_PRIVATE_KEY_PATH のパスと、ファイルの存在・読み取り権限を確認してください。`,
+    );
+  }
+  if (!statSync(abs).isFile()) {
+    throw new ConfigError(
+      `秘密鍵がファイルではありません: ${abs}\n` +
+        `GITHUB_APP_PRIVATE_KEY_PATH には .pem ファイルのパスを指定してください。`,
     );
   }
 }
