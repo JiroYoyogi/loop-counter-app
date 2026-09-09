@@ -72,8 +72,12 @@ if [ "$scheme" != "https" ] || [ "$host" != "github.com" ]; then
   die "origin が HTTPS の GitHub リモートではありません: ${origin}" 5
 fi
 
-slug="${path%.git}"
-slug="${slug%/}"
+# 末尾スラッシュを先に落としてから .git を外す。順序が逆だと
+# https://github.com/owner/repo.git/ で .git が一致せず、slug が
+# owner/repo.git のまま残ってしまう。
+slug="$path"
+while [ "$slug" != "${slug%/}" ]; do slug="${slug%/}"; done
+slug="${slug%.git}"
 case "$slug" in
   */*/*|"") die "origin の OWNER/REPO を解釈できません: ${origin}" 5 ;;
   */*) : ;;
