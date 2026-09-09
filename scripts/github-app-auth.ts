@@ -16,7 +16,7 @@
  * 有効期限まで5分以上あれば再利用する（キャッシュ先はリポジトリ外に固定）。
  */
 
-import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync, accessSync, constants } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,6 +48,31 @@ function requireEnv(name: string): string {
   return v.trim();
 }
 
+/**
+ * トークンとして妥当な文字列か。空・空白のみ・空白や改行を含むものは不正とみなす。
+ * 空トークンをそのまま返すと gh は「未設定」として保存済みの個人認証へ
+ * フォールバックしてしまうため、ここで弾く。
+ */
+function isValidToken(v: unknown): v is string {
+  return typeof v === "string" && v.trim() !== "" && !/\s/.test(v);
+}
+
+/**
+ * 秘密鍵が読めることだけを確認する（内容は読まない）。
+ * キャッシュヒット時でも設定不備をその場で検知するために使う。
+ */
+function assertPrivateKeyReadable(path: string): void {
+  const abs = expandHome(path);
+  try {
+    accessSync(abs, constants.R_OK);
+  } catch {
+    throw new ConfigError(
+      `秘密鍵を読み込めません: ${abs}\n` +
+        `GITHUB_APP_PRIVATE_KEY_PATH のパスと、ファイルの存在・読み取り権限を確認してください。`,
+    );
+  }
+}
+
 function readPrivateKey(path: string): string {
   const abs = expandHome(path);
   try {
@@ -72,12 +97,13 @@ function readCache(): TokenCache | null {
     const raw = readFileSync(expandHome(CACHE_PATH), "utf8");
     const parsed = JSON.parse(raw) as Partial<TokenCache>;
     if (
-      typeof parsed.token === "string" &&
+      isValidToken(parsed.token) &&
       typeof parsed.expiresAt === "string" &&
       typeof parsed.installationId === "string"
     ) {
       return parsed as TokenCache;
     }
+    // 破損キャッシュ（空トークン等）はキャッシュミスとして扱い、再発行させる。
     return null;
   } catch {
     return null;
@@ -117,6 +143,9 @@ async function main(): Promise<void> {
   const appId = requireEnv("GITHUB_APP_ID");
   const installationId = requireEnv("GITHUB_APP_INSTALLATION_ID");
   const privateKeyPath = requireEnv("GITHUB_APP_PRIVATE_KEY_PATH");
+  // キャッシュを返す場合でも先に検証する。ここを飛ばすと、鍵が削除・移動されても
+  // キャッシュが切れるまで（最大1時間）成功し続け、設定不備の発覚が遅れる。
+  assertPrivateKeyReadable(privateKeyPath);
 
   const cached = readCache();
   if (cached && isFresh(cached, installationId)) {
@@ -141,6 +170,10 @@ async function main(): Promise<void> {
       `トークンの発行に失敗しました: ${detail}\n` +
         `App ID / インストール ID / 秘密鍵の対応関係と、App のインストール状態を確認してください。`,
     );
+  }
+
+  if (!isValidToken(token)) {
+    throw new ConfigError("発行されたトークンが不正です（空、または空白を含む）。");
   }
 
   writeCache({ token, expiresAt, installationId });

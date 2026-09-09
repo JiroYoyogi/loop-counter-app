@@ -129,7 +129,11 @@ eval "export GIT_CONFIG_VALUE_${_gc_n}=/nonexistent/with-github-app-no-hooks"
 export GIT_CONFIG_COUNT="$((_gc_n + 1))"
 
 # --- トークンを注入して実行 -------------------------------------------------
-TOKEN="$(cd "$SCRIPT_DIR/.." && npm run --silent gh-token)"
+# 空トークンを export すると gh は「未設定」とみなして保存済みの個人認証へ
+# フォールバックする。取得できなければ fail closed で止める。
+if ! TOKEN="$(cd "$SCRIPT_DIR/.." && npm run --silent gh-token)" || [ -z "$TOKEN" ]; then
+  die "App トークンを取得できませんでした。個人認証へフォールバックせず中断します" 4
+fi
 export GH_TOKEN="$TOKEN"
 export GITHUB_TOKEN="$TOKEN"
 
