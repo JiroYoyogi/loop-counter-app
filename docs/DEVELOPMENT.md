@@ -196,8 +196,10 @@ python3 -m http.server 8000
 
 - PR に `@codex review` とコメントするとレビューが走る。
 - **`@codex review` は必ずユーザー本人のアカウントから投稿する。**
-  GitHub App（bot）名義のコメントに書いても Codex は反応しない。
-  Claude はレビュー依頼コメントを投稿しない（対応内容の報告までを行う）。
+  GitHub App（bot）名義のコメントに書いても Codex は反応しないため。
+- Claude は push 後に対応内容の**サマリコメントを PR に投稿する**（bot 名義）。
+  ただしその本文に `@codex review` は書かない（効かないため）。
+  レビューの起動はユーザーが自分のアカウントから行う。
 - レビュー方針は `AGENTS.md` を参照。
 - レビューコメントへの返信は日本語で、対応内容と対応コミットを簡潔に書く。
   返信は `scripts/gh-review-reply.sh` を使う（bot 名義で投稿される）。
