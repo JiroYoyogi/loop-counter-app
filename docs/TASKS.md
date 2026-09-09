@@ -97,6 +97,8 @@
 - `.claude/settings.json` の deny リストは変更しない（現状維持）。
   App 化の目的は操作主体の分離であり、`gh pr merge` / `gh pr review` /
   force push 等の禁止はこれまで通り維持する。
+  なお deny リスト自体の抜け穴（refspec 先頭の `+` による force push など）は
+  App 化以前から存在するものなので、タスク7として切り出す。
 - アプリ本体（`index.html` / `src` / カウンター機能）には手を加えない。
 
 ### 完成条件
@@ -165,3 +167,42 @@
   追加されている。`npm test`（既存の Jest）はこれまで通り通る。
 - `docs/DEVELOPMENT.md` にセットアップ手順が記載されている。
 - `.claude/settings.json` の deny リストが変更されていない。
+## 7. `.claude/settings.json` の deny リストの棚卸し
+
+- タスク6のレビューで、refspec 先頭の `+`（強制更新）が現在の deny で
+  捕捉されないことが判明した（例: `git push origin +HEAD:refs/heads/x`）。
+  これは**タスク6以前から存在する穴**で、App 化とは独立している。
+- 1行足すのではなく、部分一致ベースのパターン全体を棚卸しする。
+  取りこぼし（拒否すべきものが通る）と過剰拒否（正当な操作が止まる）の
+  両方を見る。
+
+既知の懸念（実装前に実機で要確認）:
+
+| パターン | 懸念 |
+| --- | --- |
+| `Bash(git push:*--force*)` / `*-f*` | `+refspec` 形式を捕捉しない。`-f` の部分一致は `--follow-tags` 等まで拒否する可能性 |
+| `Bash(git push origin main:*)` | `git push origin HEAD:main` を捕捉しない |
+| `Bash(gh api:*--method DELETE*)` / `*-X DELETE*` | `-XDELETE`（連結形）や `--method=DELETE` を捕捉しない |
+
+- 実装前に Claude Code の deny パターンの照合仕様（前方一致か部分一致か、
+  `:` の意味、大小文字の扱い）を**実機で確認**する。推測で書かない。
+- `.claude/settings.json` は Claude 自身の権限設定なので、変更内容は
+  ユーザーが必ずレビューしてからマージする。
+- アプリ本体（`index.html` / `counter.js` / `storage.js` 等）には手を加えない。
+
+### 完成条件
+
+- deny パターンの照合仕様を実機で確認した結果が PR 説明に記載されている。
+- 次がいずれも拒否される:
+  - `git push origin +HEAD:refs/heads/<branch>`（refspec による force push）
+  - `git push origin HEAD:main`
+  - `gh api -XDELETE ...` / `gh api --method=DELETE ...`
+- 次がいずれも**拒否されない**（過剰拒否の確認）:
+  - `git push -u origin HEAD`（feature ブランチへの通常 push）
+  - `git push origin feature/<name>`
+  - `gh api repos/OWNER/REPO`（GET）
+- 既存の禁止が引き続き拒否される:
+  `gh pr merge` / `gh pr review` / `git merge` / `git push --force` /
+  `git branch -D` / `gh repo delete`
+- `docs/DEVELOPMENT.md` の「Claude Code の権限制約」表が更新後の内容と一致する。
+- `npm test` が通り、アプリ本体に変更がない。
