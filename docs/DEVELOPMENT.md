@@ -112,11 +112,14 @@ git push -u origin HEAD
 
 - `gh pr create|view|list|status|checks|diff|comment|ready`
 - `gh repo view`
-- `gh api` — REST の GET / POST / PATCH のみ。`PUT` / `DELETE` /
-  `graphql` / `*/reviews` への書き込み（＝ bot による PR 承認）は不可
+- `gh api` — GET は任意。**書き込み（GET 以外）はコメント／リアクション系の
+  エンドポイントに限定**（`.../comments`、`.../comments/*/replies`、
+  `.../comments/*`、`.../comments/*/reactions`）。
+  `PUT` / `DELETE`、`graphql`、`*/reviews`、`/git/refs/*`（force 更新）、
+  `/merges`、`/pulls/{n}`（PR 編集）などその他の書き込みは不可
 
 それ以外・エイリアス・拡張は終了コード 3 で拒否する。
-（レビュースレッドへの返信は `gh api --method POST .../replies` で可能）
+（レビュースレッドへの返信は `gh api --method POST .../comments/{id}/replies` で可能）
 
 ```bash
 scripts/with-github-app.sh gh pr create --fill
@@ -145,9 +148,9 @@ npm run gh-token
 - `git` は素の `git` として実行するため、deny リストが従来どおり照合される。
 - `gh` は `with-github-app.sh` 経由でのみ App トークンを使う。ラッパーは
   許可リスト方式（default-deny）。`gh` 以外・許可外サブコマンド・エイリアス・
-  拡張、および `gh api` の `PUT`/`DELETE`/`graphql`/`*/reviews` 書き込みを
-  トークン取得前に拒否する（終了コード 3）。必要な読み取り・コメント系が
-  増えたら許可リストに1行足す。
+  拡張を拒否し、`gh api` の書き込みはコメント／リアクション系エンドポイント
+  だけに限定する（メソッド名ではなく宛先で判定。`/git/refs` force 更新や
+  `/merges` などの迂回を防ぐ）。すべてトークン取得前に拒否（終了コード 3）。
 - ラッパーで防ぎきれない範囲（`gh api` POST で PR にコメントを付ける等）は
   低リスクとして許容する。マージ・force push・ブランチ削除・リポジトリ設定は
   ラッパー／deny リスト／`main` のブランチ保護で多重にブロックされる。

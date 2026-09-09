@@ -7,8 +7,9 @@
 # 設計方針: 許可リスト（default-deny）
 #   実行できるのは下記の gh サブコマンドだけ:
 #     pr create|view|list|status|checks|diff|comment|ready / repo view
-#     api （REST の GET / POST / PATCH のみ。PUT / DELETE / graphql は不可。
-#           レビュー投稿 *(.../reviews)* への書き込みも不可）
+#     api （GET は任意。書き込み（GET 以外）はコメント／リアクション系の
+#           エンドポイントに限定。PUT / DELETE / graphql、および
+#           ref 更新・merges・PR 編集などその他の書き込みは不可）
 #   未知のサブコマンド・エイリアス・拡張は一律拒否。
 #   （deny リストを模倣するより、許可を絞るほうが穴が出にくい）
 #
@@ -63,12 +64,10 @@ case "$sub1 $sub2" in
     die "許可されていない gh 操作です: gh $* （許可リストは ${0} を参照）" 3 ;;
 esac
 
-# --- gh api: REST の GET / POST / PATCH のみ許可 ---------------------------
-# 拒否するもの:
-#   - PUT / DELETE（マージ・ファイル直書き・ブランチ削除など）
-#   - graphql エンドポイント（任意 mutation を実行できる）
-#   - */reviews への書き込み（bot による PR 承認の防止）
-# 引数の位置解析はせず、「危険を示すトークンが含まれるか」で判定する。
+# --- gh api: GET は任意 / 書き込みはコメント系エンドポイントに限定 -----------
+# メソッド名だけでは PATCH /git/refs（force 更新）や POST /merges のような
+# 破壊的書き込みを止められないため、「書き込み先エンドポイントの許可リスト」で
+# 判定する（default-deny）。
 if [ "$sub1" = "api" ]; then
   # 1) メソッド抽出（-X M / -XM / --method M / --method=M / 結合クラスタ -iXM）。
   #    明示メソッドが無く -f/-F/--field 等があれば gh は POST になる。
@@ -98,24 +97,46 @@ if [ "$sub1" = "api" ]; then
   [ -z "$method" ] && [ "$has_fields" -eq 1 ] && method="POST"
   [ -z "$method" ] && method="GET"
 
+  # 2) メソッドは GET / POST / PATCH のみ（PUT / DELETE は宛先を問わず拒否）
   case "$method" in
     GET|POST|PATCH) : ;;
     *) die "gh api の ${method} メソッドは許可されていません（GET / POST / PATCH のみ）" 3 ;;
   esac
 
-  # 2) graphql / reviews への書き込みを含むか（全引数を走査）
+  # 3) エンドポイント（最初の位置引数）を特定。値を取る api フラグは読み飛ばす。
+  #    クラスタ形式（-iXDELETE 等）は値フラグ一覧に一致しないので素通りするが、
+  #    その場合は次の引数が本来のエンドポイントになるため問題ない。
+  endpoint=""
+  skip=0
+  seen_api=0
   for a in "${args[@]}"; do
+    if [ "$seen_api" -eq 0 ]; then seen_api=1; continue; fi   # "api" 自体
+    if [ "$skip" -eq 1 ]; then skip=0; continue; fi
     case "$a" in
-      graphql|/graphql|graphql\?*|/graphql\?*)
-        die "gh api graphql は許可されていません（任意 mutation を実行できるため）" 3 ;;
+      -X|--method|-f|--raw-field|-F|--field|-H|--header|-q|--jq|-t|--template|--input|-p|--preview|--cache|--hostname)
+        skip=1 ;;
+      -*) : ;;
+      *) endpoint="$a"; break ;;
     esac
-    if [ "$method" != "GET" ]; then
-      case "$a" in
-        */reviews|*/reviews/*|*/reviews\?*)
-          die "gh api でのレビュー投稿（${a}）は許可されていません（bot 承認の防止）" 3 ;;
-      esac
-    fi
   done
+  ep="${endpoint%%\?*}"   # クエリ除去
+  ep="${ep%/}"            # 末尾スラッシュ除去
+
+  if [ "$method" != "GET" ]; then
+    # 書き込みを許可するエンドポイント（コメント本体 / スレッド返信 / リアクション）
+    case "$ep" in
+      */pulls/*/comments|*/issues/*/comments|\
+      */pulls/comments/*|*/issues/comments/*|\
+      */pulls/*/comments/*/replies|\
+      */pulls/comments/*/reactions|*/issues/comments/*/reactions|\
+      */pulls/*/comments/*/reactions|*/issues/*/comments/*/reactions)
+        : ;;
+      *reviews*)
+        die "gh api でのレビュー投稿（${endpoint}）は許可されていません（bot 承認の防止）" 3 ;;
+      *)
+        die "gh api の書き込みは ${method} ${endpoint:-（宛先不明）} — コメント／リアクション系エンドポイント以外は許可されていません" 3 ;;
+    esac
+  fi
 fi
 
 # --- トークンを注入して実行 -------------------------------------------------

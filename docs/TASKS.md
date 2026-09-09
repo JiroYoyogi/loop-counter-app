@@ -85,8 +85,9 @@
   ラッパーで `git` をくるまないため、deny リストの照合は従来どおり効く。
 - `gh` は `scripts/with-github-app.sh` 経由で実行する（`GH_TOKEN` を注入）。
   ラッパーは許可リスト方式（default-deny）。許可 gh サブコマンド以外・
-  エイリアス・拡張、`gh api` の `PUT`/`DELETE`/`graphql`/`*/reviews` 書き込みを
-  拒否する（`gh api` の GET/POST/PATCH は許可 → bot 名義のレビュー返信が可能）。
+  エイリアス・拡張を拒否し、`gh api` の書き込みは**コメント／リアクション系
+  エンドポイントのみ**に限定する（宛先で判定。GET は任意）。
+  → bot 名義のレビュー返信は可能、force 更新やマージ等は不可。
 - App の権限は最小限（`contents:write` / `pull_requests:write` / `metadata:read`）。
   `workflows` は付与しない。
 - ライブラリ追加あり。`@octokit/auth-app`（App 認証）と `tsx`（TS 実行）を
@@ -109,8 +110,9 @@
   `gh pr view` / `gh api` GET / `gh api --method POST .../replies` など）が成功する。
 - `scripts/with-github-app.sh` に次を渡すと、トークン取得前に終了コード 3 で拒否される:
   `gh pr merge`、`gh -R o/r pr merge`、エイリアス、`git`、`sh -c ...`、
-  `gh api` の `PUT`/`DELETE`（`-iXDELETE` 等の結合形も）/`graphql`/
-  `*/reviews` への書き込み。
+  `gh api` の `PUT`/`DELETE`（`-iXDELETE` 等の結合形も）、`graphql`、
+  コメント／リアクション系以外への書き込み（`/git/refs`・`/merges`・
+  `/pulls/{n}` 編集・`*/reviews` など）。
 - 2回目以降の実行では、キャッシュした未期限切れトークンを再利用し、
   GitHub への新規リクエストを行わない。
 - キャッシュされたトークンが期限切れ（または残り 5 分未満）の場合は
