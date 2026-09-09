@@ -103,6 +103,12 @@ function writeCache(cache: TokenCache): void {
     /* 権限変更できなくても致命的ではない */
   }
   writeFileSync(abs, JSON.stringify(cache, null, 2) + "\n", { mode: 0o600 });
+  // mode は新規作成時のみ適用されるため、既存ファイルにも明示的に 0600 を適用。
+  try {
+    chmodSync(abs, 0o600);
+  } catch {
+    /* 権限変更できなくても致命的ではない */
+  }
 }
 
 async function main(): Promise<void> {

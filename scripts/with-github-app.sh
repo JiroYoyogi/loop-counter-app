@@ -5,8 +5,9 @@
 # このラッパーは gh 専用。
 #
 # 設計方針: 許可リスト（default-deny）
-#   このラッパー経由で実行できるのは下記 ALLOW の gh サブコマンドだけ。
-#   未知のサブコマンド・エイリアス・拡張・`gh api` の書き込みメソッドは一律拒否。
+#   実行できるのは下記の gh サブコマンドだけ:
+#     pr create|view|list|status|checks|diff|comment|ready / repo view / api(GET)
+#   未知のサブコマンド・エイリアス・拡張・`gh api` のメソッド指定は一律拒否。
 #   （deny リストを模倣するより、許可を絞るほうが穴が出にくい）
 #
 # 例:
@@ -28,50 +29,41 @@ die() {
 shift
 args=("$@")
 
-# --- gh のグローバルフラグを読み飛ばして実効サブコマンドを特定 -------------
-# 値を取るグローバルフラグは -R / --repo のみ。フラグ位置に依存しないため
-# `gh -R o/r pr merge` も `gh pr merge` と同様に判定できる。
-idx=0
-while [ "$idx" -lt "${#args[@]}" ]; do
-  case "${args[$idx]}" in
-    -R|--repo) idx=$((idx + 2)) ;;
-    --repo=*)  idx=$((idx + 1)) ;;
-    -*)        idx=$((idx + 1)) ;;
-    *)         break ;;
+# --- 実効サブコマンド（先頭2語）を特定 -------------------------------------
+# 値を取るフラグは -R / --repo のみ（gh のグローバル/継承フラグで値を取るのは
+# これだけ）。位置に依存せず読み飛ばすので `gh -R o/r pr view` /
+# `gh pr -R o/r view` のどちらも `pr view` と判定できる。
+words=()
+skip_next=0
+for a in "${args[@]}"; do
+  if [ "$skip_next" -eq 1 ]; then skip_next=0; continue; fi
+  case "$a" in
+    -R|--repo) skip_next=1 ;;
+    -*)        : ;;                 # 値なしフラグ（--json など）は読み飛ばす
+    *)         words+=("$a"); [ "${#words[@]}" -ge 2 ] && break ;;
   esac
 done
-sub1="${args[$idx]:-}"
-sub2="${args[$((idx + 1))]:-}"
+sub1="${words[0]:-}"
+sub2="${words[1]:-}"
 
-# --- 許可リスト ---------------------------------------------------------
+# --- 許可リスト（default-deny）----------------------------------------------
 case "$sub1 $sub2" in
   "pr create"|"pr view"|"pr list"|"pr status"|"pr checks"|"pr diff"|"pr comment"|"pr ready"|\
   "repo view"|\
-  "api"|"api "*)
+  "api "*)
     : ;;
   *)
     die "許可されていない gh 操作です: gh $* （許可リストは ${0} を参照）" 3 ;;
 esac
 
-# --- gh api は書き込みメソッド（PUT / DELETE）を拒否（GET / POST / PATCH は許可）---
-# -X DELETE / --method=DELETE / -XDELETE など gh が受理する全形式を正規化する。
+# --- gh api は GET のみ許可（メソッド指定は一律不可）------------------------
+# -X / --method のあらゆる形式（-X DELETE / --method=PUT / 結合された -iXDELETE 等）
+# を、値を解析せず「メソッドフラグの存在」だけで拒否する。GET は既定なので不要。
 if [ "$sub1" = "api" ]; then
-  expect_method=0
   for a in "${args[@]}"; do
-    m=""
-    if [ "$expect_method" -eq 1 ]; then
-      m="$a"; expect_method=0
-    else
-      case "$a" in
-        -X|--method)  expect_method=1; continue ;;
-        -X*)          m="${a#-X}" ;;
-        --method=*)   m="${a#--method=}" ;;
-        *)            continue ;;
-      esac
-    fi
-    [ -n "$m" ] || continue
-    case "$(printf '%s' "$m" | tr '[:lower:]' '[:upper:]')" in
-      PUT|DELETE) die "gh api の ${m} メソッドは許可されていません" 3 ;;
+    case "$a" in
+      --method|--method=*) die "gh api はメソッド指定不可（GET のみ許可）" 3 ;;
+      -*X*)                die "gh api はメソッド指定不可（GET のみ許可）" 3 ;;
     esac
   done
 fi
